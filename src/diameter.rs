@@ -108,6 +108,8 @@ pub struct AvpHeader {
     pub flags: AvpFlags,
     pub length: u32,
     pub vendor_id: Option<u32>,
+
+    pub type_: AvpType,
 }
 
 #[derive(Debug)]
@@ -117,57 +119,22 @@ pub struct AvpFlags {
     pub private: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_diameter_struct() {
-        let message = DiameterMessage {
-            header: DiameterHeader {
-                version: 1,
-                length: 64,
-                flags: CommandFlags {
-                    request: true,
-                    proxyable: false,
-                    error: false,
-                    retransmit: false,
-                },
-                code: CommandCode::CreditControl,
-                application_id: ApplicationId::CreditControl,
-                hop_by_hop_id: 1123158610,
-                end_to_end_id: 3102381851,
-            },
-            avps: vec![
-                Avp {
-                    header: AvpHeader {
-                        code: 264,
-                        flags: AvpFlags {
-                            vendor: false,
-                            mandatory: true,
-                            private: false,
-                        },
-                        length: 6,
-                        vendor_id: None,
-                    },
-                    data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
-                },
-                Avp {
-                    header: AvpHeader {
-                        code: 296,
-                        flags: AvpFlags {
-                            vendor: false,
-                            mandatory: true,
-                            private: false,
-                        },
-                        length: 4,
-                        vendor_id: None,
-                    },
-                    data: vec![0x37, 0x38, 0x39, 0x30],
-                },
-            ],
-        };
-
-        println!("diameter message: {}", message);
-    }
+#[derive(Debug)]
+pub enum AvpType {
+    Address,
+    AddressIPv4,
+    AddressIPv6,
+    DiameterIdentity,
+    DiameterURI,
+    Enumerated,
+    Float32,
+    Float64,
+    Grouped,
+    Integer32,
+    Integer64,
+    OctetString,
+    Time,
+    Unsigned32,
+    Unsigned64,
+    UTF8String,
 }

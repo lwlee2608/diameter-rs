@@ -20,6 +20,23 @@ impl fmt::Display for DiameterMessage {
 
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let request_flag = if self.flags.request {
+            "Request"
+        } else {
+            "Answer"
+        };
+        let error_flag = if self.flags.error { "Error" } else { "" };
+        let proxyable_flag = if self.flags.proxyable {
+            "Proxyable"
+        } else {
+            ""
+        };
+        let retransmit_flag = if self.flags.retransmit {
+            "Retransmit"
+        } else {
+            ""
+        };
+
         write!(
             f,
             "{}({}) {}({}) {}{}{}{} {}, {}",
@@ -27,22 +44,10 @@ impl fmt::Display for DiameterHeader {
             self.code.clone() as u32,
             self.application_id,
             self.application_id.clone() as u32,
-            if self.flags.request {
-                "request "
-            } else {
-                "answer "
-            },
-            if self.flags.error { "error " } else { "" },
-            if self.flags.proxyable {
-                "proxiable "
-            } else {
-                ""
-            },
-            if self.flags.retransmit {
-                "retransmit "
-            } else {
-                ""
-            },
+            request_flag,
+            error_flag,
+            proxyable_flag,
+            retransmit_flag,
             self.hop_by_hop_id,
             self.end_to_end_id
         )
@@ -104,4 +109,62 @@ fn get_avp_type(_code: u32) -> String {
 
 fn get_avp_value(data: &[u8]) -> String {
     String::from_utf8_lossy(data).to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::diameter::{AvpFlags, AvpHeader, AvpType, CommandFlags};
+
+    #[test]
+    fn test_diameter_struct() {
+        let message = DiameterMessage {
+            header: DiameterHeader {
+                version: 1,
+                length: 64,
+                flags: CommandFlags {
+                    request: true,
+                    proxyable: false,
+                    error: false,
+                    retransmit: false,
+                },
+                code: CommandCode::CreditControl,
+                application_id: ApplicationId::CreditControl,
+                hop_by_hop_id: 1123158610,
+                end_to_end_id: 3102381851,
+            },
+            avps: vec![
+                Avp {
+                    header: AvpHeader {
+                        code: 264,
+                        flags: AvpFlags {
+                            vendor: false,
+                            mandatory: true,
+                            private: false,
+                        },
+                        length: 6,
+                        vendor_id: None,
+                        type_: AvpType::DiameterIdentity,
+                    },
+                    data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
+                },
+                Avp {
+                    header: AvpHeader {
+                        code: 296,
+                        flags: AvpFlags {
+                            vendor: false,
+                            mandatory: true,
+                            private: false,
+                        },
+                        length: 4,
+                        vendor_id: None,
+                        type_: AvpType::DiameterIdentity,
+                    },
+                    data: vec![0x37, 0x38, 0x39, 0x30],
+                },
+            ],
+        };
+
+        println!("diameter message: {}", message);
+    }
 }
