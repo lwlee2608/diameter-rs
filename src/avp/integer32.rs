@@ -8,6 +8,7 @@ impl Integer32Avp {
     pub fn new(value: i32) -> Integer32Avp {
         Integer32Avp(value)
     }
+
     pub fn decode_from(b: &[u8]) -> Result<Integer32Avp, Box<dyn Error>> {
         if b.len() != 4 {
             return Err("Invalid Integer32Avp length".into());

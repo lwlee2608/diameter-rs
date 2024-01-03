@@ -20,6 +20,7 @@
  *
  */
 
+pub mod address;
 pub mod integer32;
 pub mod utf8string;
 

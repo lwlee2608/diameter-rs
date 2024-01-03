@@ -8,6 +8,7 @@ impl UTF8StringAvp {
     pub fn new(value: String) -> UTF8StringAvp {
         UTF8StringAvp(value)
     }
+
     pub fn decode_from(b: &[u8]) -> Result<UTF8StringAvp, Box<dyn Error>> {
         let s = String::from_utf8(b.to_vec())?;
         Ok(UTF8StringAvp(s))
