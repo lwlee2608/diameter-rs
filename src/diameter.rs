@@ -23,6 +23,7 @@
  *  +-+-+-+-+-+-+-+-+
  *
  */
+use crate::avp::Avp;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
@@ -73,68 +74,4 @@ pub enum ApplicationId {
     Gx = 16777238,
     Rx = 16777236,
     Sy = 16777302,
-}
-
-/*
- * The AVP header.
- *
- * AVP header format:
- *   0                   1                   2                   3
- *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                         Command-Code                          |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |  Flags       |                 AVP Length                     |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                         Vendor ID (optional)                  |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *
- * AVP Flags:
- *   0 1 2 3 4 5 6 7
- *  +-+-+-+-+-+-+-+-+  V(endor), M(andatory), P(rivate)
- *  |V M P r r r r r|  r(eserved)
- *  +-+-+-+-+-+-+-+-+
- *
- */
-#[derive(Debug)]
-pub struct Avp {
-    pub header: AvpHeader,
-    pub data: Vec<u8>,
-}
-
-#[derive(Debug)]
-pub struct AvpHeader {
-    pub code: u32,
-    pub flags: AvpFlags,
-    pub length: u32,
-    pub vendor_id: Option<u32>,
-
-    pub type_: AvpType,
-}
-
-#[derive(Debug)]
-pub struct AvpFlags {
-    pub vendor: bool,
-    pub mandatory: bool,
-    pub private: bool,
-}
-
-#[derive(Debug)]
-pub enum AvpType {
-    Address,
-    AddressIPv4,
-    AddressIPv6,
-    DiameterIdentity,
-    DiameterURI,
-    Enumerated,
-    Float32,
-    Float64,
-    Grouped,
-    Integer32,
-    Integer64,
-    OctetString,
-    Time,
-    Unsigned32,
-    Unsigned64,
-    UTF8String,
 }

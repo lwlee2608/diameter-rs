@@ -1,4 +1,5 @@
-use crate::diameter::{ApplicationId, Avp, CommandCode, DiameterHeader, DiameterMessage};
+use crate::avp::Avp;
+use crate::diameter::{ApplicationId, CommandCode, DiameterHeader, DiameterMessage};
 use std::fmt;
 
 impl fmt::Display for DiameterMessage {
@@ -114,7 +115,8 @@ fn get_avp_value(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::diameter::{AvpFlags, AvpHeader, AvpType, CommandFlags};
+    use crate::avp::{AvpFlags, AvpHeader, AvpType};
+    use crate::diameter::CommandFlags;
 
     #[test]
     fn test_diameter_struct() {
