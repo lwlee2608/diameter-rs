@@ -1,11 +1,12 @@
-use crate::avp::AvpDataType;
+use crate::avp::AvpData;
 use std::error::Error;
+use std::fmt;
 use std::net::Ipv4Addr;
 
 #[derive(Debug)]
 pub struct IPv4Avp(Ipv4Addr);
 
-impl Ipv4Addr {
+impl IPv4Avp {
     pub fn new(value: Ipv4Addr) -> IPv4Avp {
         IPv4Avp(value)
     }
@@ -15,14 +16,20 @@ impl Ipv4Addr {
             return Err("Invalid IPv4 address length".into());
         }
 
-        let ip = Ipv4Addr::from(b);
+        let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
         Ok(IPv4Avp(ip))
     }
 }
 
-impl AvpDataType for IPv4Avp {
+impl AvpData for IPv4Avp {
     fn serialize(&self) -> Vec<u8> {
         return self.0.octets().to_vec();
+    }
+}
+
+impl fmt::Display for IPv4Avp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

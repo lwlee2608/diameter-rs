@@ -1,5 +1,5 @@
-use crate::avp::AvpDataType;
-use std::error::Error;
+use crate::avp::AvpData;
+use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub struct Integer32Avp(i32);
@@ -21,9 +21,15 @@ impl Integer32Avp {
     }
 }
 
-impl AvpDataType for Integer32Avp {
+impl AvpData for Integer32Avp {
     fn serialize(&self) -> Vec<u8> {
         return self.0.to_be_bytes().to_vec();
+    }
+}
+
+impl fmt::Display for Integer32Avp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

@@ -22,12 +22,15 @@
 
 pub mod address;
 pub mod integer32;
+pub mod ipv4;
 pub mod utf8string;
 
 #[derive(Debug)]
 pub struct Avp {
     pub header: AvpHeader,
-    pub data: Vec<u8>,
+    // pub data: Vec<u8>,
+    pub type_: AvpType,
+    pub value: Box<dyn AvpData>,
 }
 
 #[derive(Debug)]
@@ -36,8 +39,6 @@ pub struct AvpHeader {
     pub flags: AvpFlags,
     pub length: u32,
     pub vendor_id: Option<u32>,
-
-    pub type_: AvpType,
 }
 
 #[derive(Debug)]
@@ -67,6 +68,6 @@ pub enum AvpType {
     UTF8String,
 }
 
-pub trait AvpDataType {
+pub trait AvpData: std::fmt::Debug + std::fmt::Display {
     fn serialize(&self) -> Vec<u8>;
 }

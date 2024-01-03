@@ -1,5 +1,5 @@
-use crate::avp::AvpDataType;
-use std::error::Error;
+use crate::avp::AvpData;
+use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub struct AddressAvp<'a>(&'a [u8]);
@@ -14,9 +14,16 @@ impl<'a> AddressAvp<'a> {
     }
 }
 
-impl AvpDataType for AddressAvp<'_> {
+impl AvpData for AddressAvp<'_> {
     fn serialize(&self) -> Vec<u8> {
         return self.0.to_vec();
+    }
+}
+
+impl fmt::Display for AddressAvp<'_> {
+    // TODO
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AddressAvp")
     }
 }
 

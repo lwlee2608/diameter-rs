@@ -71,7 +71,8 @@ impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let avp_name = get_avp_name(self.header.code);
         let avp_type = get_avp_type(self.header.code);
-        let value = get_avp_value(&self.data);
+        let value = self.value.to_string();
+        // let value = get_avp_value(&self.data);
 
         write!(
             f,
@@ -108,13 +109,14 @@ fn get_avp_type(_code: u32) -> String {
     "DiameterIdentity".to_string()
 }
 
-fn get_avp_value(data: &[u8]) -> String {
-    String::from_utf8_lossy(data).to_string()
-}
+// fn get_avp_value(data: &[u8]) -> String {
+//     String::from_utf8_lossy(data).to_string()
+// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::avp::integer32::Integer32Avp;
     use crate::avp::{AvpFlags, AvpHeader, AvpType};
     use crate::diameter::CommandFlags;
 
@@ -146,9 +148,10 @@ mod tests {
                         },
                         length: 6,
                         vendor_id: None,
-                        type_: AvpType::DiameterIdentity,
                     },
-                    data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
+                    // data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
+                    type_: AvpType::DiameterIdentity,
+                    value: Box::new(Integer32Avp::new(123456)),
                 },
                 Avp {
                     header: AvpHeader {
@@ -160,9 +163,10 @@ mod tests {
                         },
                         length: 4,
                         vendor_id: None,
-                        type_: AvpType::DiameterIdentity,
                     },
-                    data: vec![0x37, 0x38, 0x39, 0x30],
+                    // data: vec![0x37, 0x38, 0x39, 0x30],
+                    type_: AvpType::DiameterIdentity,
+                    value: Box::new(Integer32Avp::new(123456)),
                 },
             ],
         };

@@ -1,5 +1,5 @@
-use crate::avp::AvpDataType;
-use std::error::Error;
+use crate::avp::AvpData;
+use std::{error::Error, fmt};
 
 #[derive(Debug)]
 pub struct UTF8StringAvp(String);
@@ -15,9 +15,15 @@ impl UTF8StringAvp {
     }
 }
 
-impl AvpDataType for UTF8StringAvp {
+impl AvpData for UTF8StringAvp {
     fn serialize(&self) -> Vec<u8> {
         return self.0.as_bytes().to_vec();
+    }
+}
+
+impl fmt::Display for UTF8StringAvp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
