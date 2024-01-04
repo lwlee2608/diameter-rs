@@ -85,7 +85,7 @@ pub enum ApplicationId {
 #[rustfmt::skip]
 impl DiameterHeader {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
-    pub fn decode_from<R: Read>(mut reader: R) -> Result<DiameterHeader, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Box<dyn Error>> {
         let mut b = [0; HEADER_LENGTH as usize];
         reader.read_exact(&mut b)?;
 
@@ -121,30 +121,24 @@ impl DiameterHeader {
 
 impl DiameterMessage {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
-    pub fn decode_from<R: Read>(reader: R) -> Result<DiameterMessage, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterMessage, Box<dyn Error>> {
         let header = DiameterHeader::decode_from(reader)?;
+        let mut avps = Vec::new();
 
-        let avps = Vec::new();
-
-        // let mut offset = 20;
-        // while offset < header.length {
-        //     let avp = Avp::decode_from(&b[offset..])?;
-        //     offset += avp.header.length as usize;
-        //     avps.push(avp);
-        // }
-
-        Ok(DiameterMessage { header, avps })
-    }
-
-    // TODO use writer
-    pub fn serialize(&self) -> Vec<u8> {
-        let mut b = Vec::new();
-
-        for avp in &self.avps {
-            b.extend(avp.serialize());
+        let total_length = header.length;
+        let mut offset = HEADER_LENGTH;
+        while offset < total_length {
+            let avp = Avp::decode_from(reader)?;
+            offset += avp.header.length;
+            avps.push(avp);
         }
 
-        return b;
+        // sanity check, make sure everything is read
+        if offset != total_length {
+            return Err("Invalid diameter message, length mismatch".into());
+        }
+
+        Ok(DiameterMessage { header, avps })
     }
 }
 
@@ -163,8 +157,8 @@ mod tests {
             0x00, 0x00, 0x00, 0x04, // end_to_end_id
         ];
 
-        let cursor = Cursor::new(&data);
-        let header = DiameterHeader::decode_from(cursor).unwrap();
+        let mut cursor = Cursor::new(&data);
+        let header = DiameterHeader::decode_from(&mut cursor).unwrap();
         // let header = DiameterHeader::decode_from(&data).unwrap();
 
         assert_eq!(header.version, 1);

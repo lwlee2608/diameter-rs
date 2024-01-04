@@ -25,6 +25,10 @@ pub mod integer32;
 pub mod ipv4;
 pub mod utf8string;
 
+use std::{error::Error, io::Read};
+
+use self::integer32::Integer32Avp;
+
 #[derive(Debug)]
 pub struct Avp {
     pub header: AvpHeader,
@@ -73,10 +77,54 @@ pub trait AvpData: std::fmt::Debug + std::fmt::Display {
     fn serialize(&self) -> Vec<u8>;
 }
 
+impl AvpHeader {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader, Box<dyn Error>> {
+        let mut b = [0; 8];
+        reader.read_exact(&mut b)?;
+
+        let code = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
+
+        let flags = AvpFlags {
+            vendor: (b[4] & 0x80) != 0,
+            mandatory: (b[4] & 0x40) != 0,
+            private: (b[4] & 0x20) != 0,
+        };
+
+        let length = u32::from_be_bytes([0, b[5], b[6], b[7]]);
+
+        if flags.vendor {
+            let mut b = [0; 4];
+            reader.read_exact(&mut b)?;
+            let vendor_id = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
+
+            Ok(AvpHeader {
+                code,
+                flags,
+                length,
+                vendor_id: Some(vendor_id),
+            })
+        } else {
+            Ok(AvpHeader {
+                code,
+                flags,
+                length,
+                vendor_id: None,
+            })
+        }
+    }
+}
+
 impl Avp {
-    // pub fn decode_from(b: &[u8]) -> Avp {
-    //     return Avp::new(b);
-    // }
+    pub fn decode_from<R: Read>(_reader: &mut R) -> Result<Avp, Box<dyn Error>> {
+        let header = AvpHeader::decode_from(_reader)?;
+
+        let avp = Avp {
+            header,
+            value: Box::new(Integer32Avp::new(123456)), // TODO
+            v: AvpType::Integer32(Integer32Avp::new(123)),
+        };
+        return Ok(avp);
+    }
 
     pub fn serialize(&self) -> Vec<u8> {
         match &self.v {
@@ -96,4 +144,47 @@ impl Avp {
     //         _ => (),
     //     }
     // }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn test_decode_header() {
+        let data = [
+            0x00, 0x00, 0x00, 0x64, // command code
+            0x40, 0x00, 0x00, 0x0C, // flags, length
+        ];
+
+        let mut cursor = Cursor::new(&data);
+        let header = AvpHeader::decode_from(&mut cursor).unwrap();
+
+        assert_eq!(header.code, 100);
+        assert_eq!(header.length, 12);
+        assert_eq!(header.flags.vendor, false);
+        assert_eq!(header.flags.mandatory, true);
+        assert_eq!(header.flags.private, false);
+        assert_eq!(header.vendor_id, None);
+    }
+
+    #[test]
+    fn test_decode_header_with_vendor() {
+        let data = [
+            0x00, 0x00, 0x00, 0x64, // command code
+            0x80, 0x00, 0x00, 0x0C, // flags, length
+            0x00, 0x00, 0x00, 0xC8, // vendor_id
+        ];
+
+        let mut cursor = Cursor::new(&data);
+        let header = AvpHeader::decode_from(&mut cursor).unwrap();
+
+        assert_eq!(header.code, 100);
+        assert_eq!(header.length, 12);
+        assert_eq!(header.flags.vendor, true);
+        assert_eq!(header.flags.mandatory, false);
+        assert_eq!(header.flags.private, false);
+        assert_eq!(header.vendor_id, Some(200));
+    }
 }
