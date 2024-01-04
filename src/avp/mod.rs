@@ -25,7 +25,8 @@ pub mod integer32;
 pub mod ipv4;
 pub mod utf8string;
 
-use std::{error::Error, io::Read};
+use crate::error::Error;
+use std::io::Read;
 
 use self::integer32::Integer32Avp;
 
@@ -78,7 +79,7 @@ pub trait AvpData: std::fmt::Debug + std::fmt::Display {
 }
 
 impl AvpHeader {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader, Error> {
         let mut b = [0; 8];
         reader.read_exact(&mut b)?;
 
@@ -115,7 +116,7 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn decode_from<R: Read>(_reader: &mut R) -> Result<Avp, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(_reader: &mut R) -> Result<Avp, Error> {
         let header = AvpHeader::decode_from(_reader)?;
 
         let avp = Avp {

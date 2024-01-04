@@ -1,5 +1,6 @@
 use crate::avp::AvpData;
-use std::{error::Error, fmt};
+use crate::error::Error;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct Integer32Avp(i32);
@@ -9,9 +10,9 @@ impl Integer32Avp {
         Integer32Avp(value)
     }
 
-    pub fn decode_from(b: &[u8]) -> Result<Integer32Avp, Box<dyn Error>> {
+    pub fn decode_from(b: &[u8]) -> Result<Integer32Avp, Error> {
         if b.len() != 4 {
-            return Err("Invalid Integer32Avp length".into());
+            return Err(Error::DecodeError("Invalid Integer32Avp length".into()));
         }
 
         let bytes: [u8; 4] = b.try_into()?;

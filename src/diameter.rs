@@ -24,9 +24,9 @@
  *
  */
 use crate::avp::Avp;
+use crate::error::Error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::error::Error;
 use std::io::Read;
 
 #[derive(Debug)]
@@ -85,12 +85,12 @@ pub enum ApplicationId {
 #[rustfmt::skip]
 impl DiameterHeader {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Error> {
         let mut b = [0; HEADER_LENGTH as usize];
         reader.read_exact(&mut b)?;
 
         if b.len() < HEADER_LENGTH as usize {
-            return Err("Invalid diameter header, too short".into());
+            return Err(Error::DecodeError("Invalid diameter header, too short".into()));
         }
 
         let version = b[0];
@@ -121,7 +121,7 @@ impl DiameterHeader {
 
 impl DiameterMessage {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterMessage, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterMessage, Error> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
 
@@ -135,7 +135,9 @@ impl DiameterMessage {
 
         // sanity check, make sure everything is read
         if offset != total_length {
-            return Err("Invalid diameter message, length mismatch".into());
+            return Err(Error::DecodeError(
+                "Invalid diameter message, length mismatch".into(),
+            ));
         }
 
         Ok(DiameterMessage { header, avps })
