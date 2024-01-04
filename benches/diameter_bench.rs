@@ -1,6 +1,8 @@
 #![feature(test)]
 
 extern crate test;
+use std::io::Cursor;
+
 use diameter::diameter::DiameterHeader;
 use test::black_box;
 use test::Bencher;
@@ -8,7 +10,11 @@ use test::Bencher;
 #[bench]
 fn bench_decode(b: &mut Bencher) {
     let data = test_data();
-    b.iter(|| black_box(DiameterHeader::decode_from(&data).unwrap()))
+    // b.iter(|| black_box(DiameterHeader::decode_from(&data).unwrap()))
+    b.iter(|| {
+        let cursor = Cursor::new(&data);
+        black_box(DiameterHeader::decode_from(cursor).unwrap())
+    });
 }
 
 fn test_data() -> &'static [u8] {

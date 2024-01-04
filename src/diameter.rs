@@ -27,6 +27,7 @@ use crate::avp::Avp;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::error::Error;
+use std::io::Read;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
@@ -83,7 +84,11 @@ pub enum ApplicationId {
 
 #[rustfmt::skip]
 impl DiameterHeader {
-    pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
+    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(mut reader: R) -> Result<DiameterHeader, Box<dyn Error>> {
+        let mut b = [0; HEADER_LENGTH as usize];
+        reader.read_exact(&mut b)?;
+
         if b.len() < HEADER_LENGTH as usize {
             return Err("Invalid diameter header, too short".into());
         }
@@ -115,8 +120,9 @@ impl DiameterHeader {
 }
 
 impl DiameterMessage {
-    pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
-        let header = DiameterHeader::decode_from(b)?;
+    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
+    pub fn decode_from<R: Read>(reader: R) -> Result<DiameterMessage, Box<dyn Error>> {
+        let header = DiameterHeader::decode_from(reader)?;
 
         let avps = Vec::new();
 
@@ -145,6 +151,7 @@ impl DiameterMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn test_decode_header() {
@@ -155,7 +162,11 @@ mod tests {
             0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
             0x00, 0x00, 0x00, 0x04, // end_to_end_id
         ];
-        let header = DiameterHeader::decode_from(&data).unwrap();
+
+        let cursor = Cursor::new(&data);
+        let header = DiameterHeader::decode_from(cursor).unwrap();
+        // let header = DiameterHeader::decode_from(&data).unwrap();
+
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
         assert_eq!(header.flags.request, true);

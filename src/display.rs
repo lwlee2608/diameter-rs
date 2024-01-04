@@ -173,6 +173,6 @@ mod tests {
             ],
         };
 
-        // println!("diameter message: {}", message);
+        println!("diameter message: {}", message);
     }
 }
