@@ -24,12 +24,17 @@
  *
  */
 use crate::avp::Avp;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+use std::error::Error;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
     pub header: DiameterHeader,
     pub avps: Vec<Avp>,
 }
+
+const HEADER_LENGTH: u32 = 20;
 
 #[derive(Debug)]
 pub struct DiameterHeader {
@@ -42,7 +47,15 @@ pub struct DiameterHeader {
     pub end_to_end_id: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub struct CommandFlags {
+    pub request: bool,
+    pub proxyable: bool,
+    pub error: bool,
+    pub retransmit: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, FromPrimitive)]
 pub enum CommandCode {
     Error = 0,
     CapabilitiesExchange = 257,
@@ -58,15 +71,7 @@ pub enum CommandCode {
     AA = 265,
 }
 
-#[derive(Debug)]
-pub struct CommandFlags {
-    pub request: bool,
-    pub proxyable: bool,
-    pub error: bool,
-    pub retransmit: bool,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, FromPrimitive)]
 pub enum ApplicationId {
     Common = 0,
     Accounting = 3,
@@ -74,4 +79,92 @@ pub enum ApplicationId {
     Gx = 16777238,
     Rx = 16777236,
     Sy = 16777302,
+}
+
+#[rustfmt::skip]
+impl DiameterHeader {
+    pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
+        if b.len() < HEADER_LENGTH as usize {
+            return Err("Invalid diameter header, too short".into());
+        }
+
+        let version = b[0];
+        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+        let flags = CommandFlags {
+            request:    (b[4] & 0x80) != 0,
+            proxyable:  (b[4] & 0x40) != 0,
+            error:      (b[4] & 0x20) != 0,
+            retransmit: (b[4] & 0x10) != 0,
+        };
+
+        let code            = u32::from_be_bytes([0,     b[5],  b[6],  b[7]]);
+        let application_id  = u32::from_be_bytes([b[8],  b[9],  b[10], b[11]]);
+        let hop_by_hop_id   = u32::from_be_bytes([b[12], b[13], b[14], b[15]]);
+        let end_to_end_id   = u32::from_be_bytes([b[16], b[17], b[18], b[19]]);
+
+        Ok(DiameterHeader {
+            version,
+            length,
+            flags,
+            code:           FromPrimitive::from_u32(code).unwrap(),
+            application_id: FromPrimitive::from_u32(application_id).unwrap(),
+            hop_by_hop_id,
+            end_to_end_id,
+        })
+    }
+}
+
+impl DiameterMessage {
+    pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
+        let header = DiameterHeader::decode_from(b)?;
+
+        let avps = Vec::new();
+
+        // let mut offset = 20;
+        // while offset < header.length {
+        //     let avp = Avp::decode_from(&b[offset..])?;
+        //     offset += avp.header.length as usize;
+        //     avps.push(avp);
+        // }
+
+        Ok(DiameterMessage { header, avps })
+    }
+
+    // TODO use writer
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut b = Vec::new();
+
+        for avp in &self.avps {
+            b.extend(avp.serialize());
+        }
+
+        return b;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_header() {
+        let data = [
+            0x01, 0x00, 0x00, 0x14, // version, length
+            0x80, 0x00, 0x01, 0x10, // flags, code
+            0x00, 0x00, 0x00, 0x04, // application_id
+            0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
+            0x00, 0x00, 0x00, 0x04, // end_to_end_id
+        ];
+        let header = DiameterHeader::decode_from(&data).unwrap();
+        assert_eq!(header.version, 1);
+        assert_eq!(header.length, 20);
+        assert_eq!(header.flags.request, true);
+        assert_eq!(header.flags.proxyable, false);
+        assert_eq!(header.flags.error, false);
+        assert_eq!(header.flags.retransmit, false);
+        assert_eq!(header.code, CommandCode::CreditControl);
+        assert_eq!(header.application_id, ApplicationId::CreditControl);
+        assert_eq!(header.hop_by_hop_id, 3);
+        assert_eq!(header.end_to_end_id, 4);
+    }
 }

@@ -29,8 +29,9 @@ pub mod utf8string;
 pub struct Avp {
     pub header: AvpHeader,
     // pub data: Vec<u8>,
-    pub type_: AvpType,
+    // pub type_: AvpType,
     pub value: Box<dyn AvpData>,
+    pub v: AvpType,
 }
 
 #[derive(Debug)]
@@ -50,24 +51,49 @@ pub struct AvpFlags {
 
 #[derive(Debug)]
 pub enum AvpType {
-    Address,
-    AddressIPv4,
-    AddressIPv6,
-    DiameterIdentity,
-    DiameterURI,
-    Enumerated,
-    Float32,
-    Float64,
-    Grouped,
-    Integer32,
-    Integer64,
-    OctetString,
-    Time,
-    Unsigned32,
-    Unsigned64,
-    UTF8String,
+    // Address(address::AddressAvp),
+    AddressIPv4(ipv4::IPv4Avp),
+    // AddressIPv6,
+    // DiameterIdentity,
+    // DiameterURI,
+    // Enumerated,
+    // Float32,
+    // Float64,
+    // Grouped,
+    Integer32(integer32::Integer32Avp),
+    // Integer64,
+    // OctetString,
+    // Time,
+    // Unsigned32,
+    // Unsigned64,
+    UTF8String(utf8string::UTF8StringAvp),
 }
 
 pub trait AvpData: std::fmt::Debug + std::fmt::Display {
     fn serialize(&self) -> Vec<u8>;
+}
+
+impl Avp {
+    // pub fn decode_from(b: &[u8]) -> Avp {
+    //     return Avp::new(b);
+    // }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        match &self.v {
+            AvpType::Integer32(avp) => avp.serialize(),
+            AvpType::UTF8String(avp) => avp.serialize(),
+            _ => Vec::new(),
+        }
+    }
+    // pub fn deserialize(&self, b: &[u8]) {
+    //     match &self.v {
+    //         AvpType::Integer32(_) => {
+    //             let _avp = Integer32Avp::decode_from(&b).unwrap();
+    //         }
+    //         AvpType::UTF8String(_) => {
+    //             let _avp = UTF8StringAvp::decode_from(&b).unwrap();
+    //         }
+    //         _ => (),
+    //     }
+    // }
 }
