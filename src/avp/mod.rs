@@ -30,6 +30,7 @@ use core::fmt;
 use std::io::Read;
 
 use self::integer32::Integer32Avp;
+use self::utf8string::UTF8StringAvp;
 
 #[derive(Debug)]
 pub struct Avp {
@@ -129,18 +130,31 @@ impl AvpHeader {
 impl Avp {
     pub fn decode_from<R: Read>(reader: &mut R) -> Result<Avp, Error> {
         let header = AvpHeader::decode_from(reader)?;
-        let value = Integer32Avp::decode_from(reader)?;
+
+        // Hardcode for now
+        let value = match header.code {
+            30 => AvpType::UTF8String(UTF8StringAvp::decode_from(reader)?),
+            571 => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
+            _ => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
+        };
+
         return Ok(Avp {
             header,
+            value,
             // value: Box::new(value),
-            value: AvpType::Integer32(value),
         });
     }
 
     pub fn get_integer32(&self) -> Option<i32> {
         match &self.value {
-            AvpType::Integer32(integer32_avp) => Some(integer32_avp.value()),
-            // TODO Handle other variants or return None
+            AvpType::Integer32(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_utf8string(&self) -> Option<String> {
+        match &self.value {
+            AvpType::UTF8String(avp) => Some(avp.value()),
             _ => None,
         }
     }

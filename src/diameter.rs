@@ -180,7 +180,7 @@ mod tests {
     #[test]
     fn test_decode_diameter_message() {
         let data = [
-            0x01, 0x00, 0x00, 0x20, // version, length
+            0x01, 0x00, 0x00, 0x30, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
             0x00, 0x00, 0x00, 0x04, // application_id
             0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
@@ -188,13 +188,17 @@ mod tests {
             0x00, 0x00, 0x02, 0x3B, // avp code
             0x40, 0x00, 0x00, 0x0C, // flags, length
             0x00, 0x00, 0x04, 0xB0, // value
+            0x00, 0x00, 0x00, 0x1E, // avp code
+            0x00, 0x00, 0x00, 0x10, // flags, length
+            0x66, 0x6F, 0x6F, 0x62, // value
+            0x61, 0x72, 0x31, 0x32, // value
         ];
 
         let mut cursor = Cursor::new(&data);
         let message = DiameterMessage::decode_from(&mut cursor).unwrap();
 
         let avps = &message.avps;
-        assert_eq!(avps.len(), 1);
+        assert_eq!(avps.len(), 2);
         let avp0 = &avps[0];
         assert_eq!(avp0.header.code, 571);
         assert_eq!(avp0.header.length, 12);
@@ -204,6 +208,17 @@ mod tests {
         assert_eq!(avp0.header.vendor_id, None);
         match avp0.value {
             AvpType::Integer32(ref v) => assert_eq!(v.value(), 1200),
+            _ => panic!("unexpected avp type"),
+        }
+        let avp1 = &avps[1];
+        assert_eq!(avp1.header.code, 30);
+        assert_eq!(avp1.header.length, 16);
+        assert_eq!(avp1.header.flags.vendor, false);
+        assert_eq!(avp1.header.flags.mandatory, false);
+        assert_eq!(avp1.header.flags.private, false);
+        assert_eq!(avp1.header.vendor_id, None);
+        match avp1.value {
+            AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar12"),
             _ => panic!("unexpected avp type"),
         }
     }
