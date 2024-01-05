@@ -146,6 +146,8 @@ impl DiameterMessage {
 
 #[cfg(test)]
 mod tests {
+    use crate::avp::AvpType;
+
     use super::*;
     use std::io::Cursor;
 
@@ -173,5 +175,36 @@ mod tests {
         assert_eq!(header.application_id, ApplicationId::CreditControl);
         assert_eq!(header.hop_by_hop_id, 3);
         assert_eq!(header.end_to_end_id, 4);
+    }
+
+    #[test]
+    fn test_decode_diameter_message() {
+        let data = [
+            0x01, 0x00, 0x00, 0x20, // version, length
+            0x80, 0x00, 0x01, 0x10, // flags, code
+            0x00, 0x00, 0x00, 0x04, // application_id
+            0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
+            0x00, 0x00, 0x00, 0x04, // end_to_end_id
+            0x00, 0x00, 0x02, 0x3B, // avp code
+            0x40, 0x00, 0x00, 0x0C, // flags, length
+            0x00, 0x00, 0x04, 0xB0, // value
+        ];
+
+        let mut cursor = Cursor::new(&data);
+        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+
+        let avps = &message.avps;
+        assert_eq!(avps.len(), 1);
+        let avp0 = &avps[0];
+        assert_eq!(avp0.header.code, 571);
+        assert_eq!(avp0.header.length, 12);
+        assert_eq!(avp0.header.flags.vendor, false);
+        assert_eq!(avp0.header.flags.mandatory, true);
+        assert_eq!(avp0.header.flags.private, false);
+        assert_eq!(avp0.header.vendor_id, None);
+        match avp0.value {
+            AvpType::Integer32(ref v) => assert_eq!(v.value(), 1200),
+            _ => panic!("unexpected avp type"),
+        }
     }
 }

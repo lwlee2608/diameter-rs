@@ -151,8 +151,8 @@ mod tests {
                     },
                     // data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
                     // type_: AvpType::DiameterIdentity,
-                    value: Box::new(Integer32Avp::new(123456)),
-                    v: AvpType::Integer32(Integer32Avp::new(123)),
+                    // value: Box::new(Integer32Avp::new(123456)),
+                    value: AvpType::Integer32(Integer32Avp::new(123)),
                 },
                 Avp {
                     header: AvpHeader {
@@ -167,8 +167,8 @@ mod tests {
                     },
                     // data: vec![0x37, 0x38, 0x39, 0x30],
                     // type_: AvpType::DiameterIdentity,
-                    value: Box::new(Integer32Avp::new(123456)),
-                    v: AvpType::Integer32(Integer32Avp::new(123)),
+                    // value: Box::new(Integer32Avp::new(123456)),
+                    value: AvpType::Integer32(Integer32Avp::new(123)),
                 },
             ],
         };

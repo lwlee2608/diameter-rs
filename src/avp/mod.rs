@@ -26,6 +26,7 @@ pub mod ipv4;
 pub mod utf8string;
 
 use crate::error::Error;
+use core::fmt;
 use std::io::Read;
 
 use self::integer32::Integer32Avp;
@@ -35,8 +36,8 @@ pub struct Avp {
     pub header: AvpHeader,
     // pub data: Vec<u8>,
     // pub type_: AvpType,
-    pub value: Box<dyn AvpData>,
-    pub v: AvpType,
+    // pub value: Box<dyn AvpData>,
+    pub value: AvpType,
 }
 
 #[derive(Debug)]
@@ -72,6 +73,16 @@ pub enum AvpType {
     // Unsigned32,
     // Unsigned64,
     UTF8String(utf8string::UTF8StringAvp),
+}
+
+impl fmt::Display for AvpType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AvpType::AddressIPv4(ipv4_avp) => write!(f, "AddressIPv4: {}", ipv4_avp),
+            AvpType::Integer32(integer32_avp) => write!(f, "Integer32: {}", integer32_avp),
+            AvpType::UTF8String(utf8_string_avp) => write!(f, "UTF8String: {}", utf8_string_avp),
+        }
+    }
 }
 
 pub trait AvpData: std::fmt::Debug + std::fmt::Display {
@@ -116,24 +127,30 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn decode_from<R: Read>(_reader: &mut R) -> Result<Avp, Error> {
-        let header = AvpHeader::decode_from(_reader)?;
-
-        let avp = Avp {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Avp, Error> {
+        let header = AvpHeader::decode_from(reader)?;
+        let value = Integer32Avp::decode_from(reader)?;
+        return Ok(Avp {
             header,
-            value: Box::new(Integer32Avp::new(123456)), // TODO
-            v: AvpType::Integer32(Integer32Avp::new(123)),
-        };
-        return Ok(avp);
+            // value: Box::new(value),
+            value: AvpType::Integer32(value),
+        });
     }
 
-    pub fn serialize(&self) -> Vec<u8> {
-        match &self.v {
-            AvpType::Integer32(avp) => avp.serialize(),
-            AvpType::UTF8String(avp) => avp.serialize(),
-            _ => Vec::new(),
+    pub fn get_integer32(&self) -> Option<i32> {
+        match &self.value {
+            AvpType::Integer32(integer32_avp) => Some(integer32_avp.value()),
+            // TODO Handle other variants or return None
+            _ => None,
         }
     }
+    // pub fn serialize(&self) -> Vec<u8> {
+    //     match &self.v {
+    //         AvpType::Integer32(avp) => avp.serialize(),
+    //         AvpType::UTF8String(avp) => avp.serialize(),
+    //         _ => Vec::new(),
+    //     }
+    // }
     // pub fn deserialize(&self, b: &[u8]) {
     //     match &self.v {
     //         AvpType::Integer32(_) => {
