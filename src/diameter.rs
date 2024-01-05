@@ -130,6 +130,7 @@ impl DiameterMessage {
         while offset < total_length {
             let avp = Avp::decode_from(reader)?;
             offset += avp.header.length;
+            offset += avp.padding;
             avps.push(avp);
         }
 
@@ -180,7 +181,7 @@ mod tests {
     #[test]
     fn test_decode_diameter_message() {
         let data = [
-            0x01, 0x00, 0x00, 0x30, // version, length
+            0x01, 0x00, 0x00, 0x34, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
             0x00, 0x00, 0x00, 0x04, // application_id
             0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
@@ -189,9 +190,10 @@ mod tests {
             0x40, 0x00, 0x00, 0x0C, // flags, length
             0x00, 0x00, 0x04, 0xB0, // value
             0x00, 0x00, 0x00, 0x1E, // avp code
-            0x00, 0x00, 0x00, 0x10, // flags, length
+            0x00, 0x00, 0x00, 0x12, // flags, length
             0x66, 0x6F, 0x6F, 0x62, // value
             0x61, 0x72, 0x31, 0x32, // value
+            0x33, 0x34, 0x00, 0x00,
         ];
 
         let mut cursor = Cursor::new(&data);
@@ -212,13 +214,13 @@ mod tests {
         }
         let avp1 = &avps[1];
         assert_eq!(avp1.header.code, 30);
-        assert_eq!(avp1.header.length, 16);
+        assert_eq!(avp1.header.length, 18);
         assert_eq!(avp1.header.flags.vendor, false);
         assert_eq!(avp1.header.flags.mandatory, false);
         assert_eq!(avp1.header.flags.private, false);
         assert_eq!(avp1.header.vendor_id, None);
         match avp1.value {
-            AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar12"),
+            AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
             _ => panic!("unexpected avp type"),
         }
     }

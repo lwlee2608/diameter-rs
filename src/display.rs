@@ -153,6 +153,7 @@ mod tests {
                     // type_: AvpType::DiameterIdentity,
                     // value: Box::new(Integer32Avp::new(123456)),
                     value: AvpType::Integer32(Integer32Avp::new(123)),
+                    padding: 0,
                 },
                 Avp {
                     header: AvpHeader {
@@ -169,6 +170,7 @@ mod tests {
                     // type_: AvpType::DiameterIdentity,
                     // value: Box::new(Integer32Avp::new(123456)),
                     value: AvpType::Integer32(Integer32Avp::new(123)),
+                    padding: 0,
                 },
             ],
         };

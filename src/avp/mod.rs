@@ -39,6 +39,7 @@ pub struct Avp {
     // pub type_: AvpType,
     // pub value: Box<dyn AvpData>,
     pub value: AvpType,
+    pub padding: u32,
 }
 
 #[derive(Debug)]
@@ -131,18 +132,40 @@ impl Avp {
     pub fn decode_from<R: Read>(reader: &mut R) -> Result<Avp, Error> {
         let header = AvpHeader::decode_from(reader)?;
 
+        let header_length = 8 + if header.flags.vendor { 4 } else { 0 };
+        let value_length = header.length - header_length;
+
         // Hardcode for now
         let value = match header.code {
-            30 => AvpType::UTF8String(UTF8StringAvp::decode_from(reader)?),
+            30 => AvpType::UTF8String(UTF8StringAvp::decode_from(reader, value_length as usize)?),
             571 => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
             _ => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
         };
 
+        // Skip padding
+        let padding = Avp::pad_to_32_bits(value_length);
+        if padding > 0 {
+            // TODO need Seek trait
+            // reader.seek(SeekFrom::Current(bytes_to_skip as i64))?;
+            let mut b = vec![0u8; padding as usize];
+            reader.read_exact(&mut b)?;
+        }
+
         return Ok(Avp {
             header,
             value,
+            padding,
             // value: Box::new(value),
         });
+    }
+
+    fn pad_to_32_bits(length: u32) -> u32 {
+        let pad_required = length & 0b11;
+        if pad_required != 0 {
+            4 - pad_required
+        } else {
+            0
+        }
     }
 
     pub fn get_integer32(&self) -> Option<i32> {
