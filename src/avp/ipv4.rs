@@ -1,5 +1,5 @@
 use crate::avp::AvpData;
-use std::error::Error;
+use crate::error::Error;
 use std::fmt;
 use std::net::Ipv4Addr;
 
@@ -11,9 +11,9 @@ impl IPv4Avp {
         IPv4Avp(value)
     }
 
-    pub fn decode_from(b: &[u8]) -> Result<IPv4Avp, Box<dyn Error>> {
+    pub fn decode_from(b: &[u8]) -> Result<IPv4Avp, Error> {
         if b.len() != 4 {
-            return Err("Invalid IPv4 address length".into());
+            return Err(Error::DecodeError("Invalid IPv4 address length".into()));
         }
 
         let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);

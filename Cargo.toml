@@ -4,3 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+num-traits = "0.2"
+num-derive = "0.2"
+
+[dev-dependencies]
+
+[[bench]]
+name = "diameter_bench"
+path = "benches/diameter_bench.rs"

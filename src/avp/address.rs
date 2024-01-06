@@ -1,5 +1,6 @@
 use crate::avp::AvpData;
-use std::{error::Error, fmt};
+use crate::error::Error;
+use std::fmt;
 
 #[derive(Debug)]
 pub struct AddressAvp<'a>(&'a [u8]);
@@ -9,7 +10,7 @@ impl<'a> AddressAvp<'a> {
         AddressAvp(data)
     }
 
-    pub fn decode_from(b: &'a [u8]) -> Result<AddressAvp, Box<dyn Error>> {
+    pub fn decode_from(b: &'a [u8]) -> Result<AddressAvp, Error> {
         Ok(AddressAvp(b))
     }
 }

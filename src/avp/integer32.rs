@@ -1,5 +1,7 @@
 use crate::avp::AvpData;
-use std::{error::Error, fmt};
+use crate::error::Error;
+use std::fmt;
+use std::io::Read;
 
 #[derive(Debug)]
 pub struct Integer32Avp(i32);
@@ -9,14 +11,14 @@ impl Integer32Avp {
         Integer32Avp(value)
     }
 
-    pub fn decode_from(b: &[u8]) -> Result<Integer32Avp, Box<dyn Error>> {
-        if b.len() != 4 {
-            return Err("Invalid Integer32Avp length".into());
-        }
+    pub fn value(&self) -> i32 {
+        self.0
+    }
 
-        let bytes: [u8; 4] = b.try_into()?;
-        let num = i32::from_be_bytes(bytes);
-
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Integer32Avp, Error> {
+        let mut b = [0; 4];
+        reader.read_exact(&mut b)?;
+        let num = i32::from_be_bytes(b);
         Ok(Integer32Avp(num))
     }
 }
@@ -35,13 +37,16 @@ impl fmt::Display for Integer32Avp {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use super::*;
 
     #[test]
     fn test_encode_decode() {
         let avp = Integer32Avp::new(1234567890);
-        let bytes = avp.serialize();
-        let avp = Integer32Avp::decode_from(&bytes).unwrap();
+        let encoded = avp.serialize();
+        let mut cursor = Cursor::new(&encoded);
+        let avp = Integer32Avp::decode_from(&mut cursor).unwrap();
         assert_eq!(avp.0, 1234567890);
     }
 }
