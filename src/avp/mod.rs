@@ -39,18 +39,17 @@ use self::utf8string::UTF8StringAvp;
 
 #[derive(Debug)]
 pub struct Avp {
-    pub header: AvpHeader,
-    // pub value: Box<dyn AvpData>,
-    pub value: AvpType,
-    pub padding: u32,
+    header: AvpHeader,
+    value: AvpType,
+    padding: u32,
 }
 
 #[derive(Debug)]
 pub struct AvpHeader {
-    pub code: u32,
-    pub flags: AvpFlags,
-    pub length: u32,
-    pub vendor_id: Option<u32>,
+    code: u32,
+    flags: AvpFlags,
+    length: u32,
+    vendor_id: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -92,6 +91,15 @@ impl fmt::Display for AvpType {
 }
 
 impl AvpType {
+    pub fn length(&self) -> u32 {
+        match self {
+            AvpType::AddressIPv4(avp) => avp.length(),
+            AvpType::Integer32(avp) => avp.length(),
+            AvpType::UTF8String(avp) => avp.length(),
+            AvpType::OctetString(avp) => avp.length(),
+        }
+    }
+
     pub fn get_type(&self) -> String {
         match self {
             AvpType::AddressIPv4(_) => "AddressIPv4".to_string(),
@@ -104,6 +112,7 @@ impl AvpType {
 
 pub trait AvpData: std::fmt::Debug + std::fmt::Display {
     fn serialize(&self) -> Vec<u8>;
+    fn length(&self) -> u32;
 }
 
 impl AvpHeader {
@@ -144,6 +153,47 @@ impl AvpHeader {
 }
 
 impl Avp {
+    pub fn new(code: u32, flags: AvpFlags, vendor_id: Option<u32>, value: AvpType) -> Avp {
+        let header = AvpHeader {
+            code,
+            flags,
+            length: 0,
+            vendor_id,
+        };
+
+        let padding = Avp::pad_to_32_bits(value.length());
+
+        Avp {
+            header,
+            value,
+            padding,
+        }
+    }
+
+    pub fn get_code(&self) -> u32 {
+        self.header.code
+    }
+
+    pub fn get_flags(&self) -> &AvpFlags {
+        &self.header.flags
+    }
+
+    pub fn get_vendor_id(&self) -> Option<u32> {
+        self.header.vendor_id
+    }
+
+    pub fn get_length(&self) -> u32 {
+        self.header.length
+    }
+
+    pub fn get_padding(&self) -> u32 {
+        self.padding
+    }
+
+    pub fn get_value(&self) -> &AvpType {
+        &self.value
+    }
+
     pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp, Error> {
         let header = AvpHeader::decode_from(reader)?;
 

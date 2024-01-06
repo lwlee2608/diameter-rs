@@ -69,19 +69,23 @@ impl fmt::Display for ApplicationId {
 
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let avp_name = get_avp_name(self.header.code);
+        let avp_name = get_avp_name(self.get_code());
+        let vendor_id = match self.get_vendor_id() {
+            Some(v) => v.to_string(),
+            None => "".to_string(),
+        };
 
         write!(
             f,
             "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
             avp_name,
-            self.header.code,
-            self.header.code.clone() as u32,
-            get_bool_unicode(self.header.flags.vendor),
-            get_bool_unicode(self.header.flags.mandatory),
-            get_bool_unicode(self.header.flags.private),
-            self.value.get_type(),
-            self.value.to_string()
+            vendor_id,
+            self.get_code(),
+            get_bool_unicode(self.get_flags().vendor),
+            get_bool_unicode(self.get_flags().mandatory),
+            get_bool_unicode(self.get_flags().private),
+            self.get_value().get_type(),
+            self.get_value().to_string()
         )
     }
 }
@@ -96,7 +100,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 fn get_avp_name(code: u32) -> String {
     match code {
-        264 => "Origin-Host".to_string(),
+        264 => "Session-Id".to_string(),
         296 => "Origin-Realm".to_string(),
         _ => "Unknown".to_string(),
     }
@@ -107,7 +111,7 @@ mod tests {
     use super::*;
     use crate::avp::integer32::Integer32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
-    use crate::avp::{AvpFlags, AvpHeader, AvpType};
+    use crate::avp::{AvpFlags, AvpType};
     use crate::diameter::CommandFlags;
 
     #[test]
@@ -128,37 +132,26 @@ mod tests {
                 end_to_end_id: 3102381851,
             },
             avps: vec![
-                Avp {
-                    header: AvpHeader {
-                        code: 264,
-                        flags: AvpFlags {
-                            vendor: false,
-                            mandatory: true,
-                            private: false,
-                        },
-                        length: 6,
-                        vendor_id: None,
+                Avp::new(
+                    296,
+                    AvpFlags {
+                        vendor: false,
+                        mandatory: true,
+                        private: false,
                     },
-                    // data: vec![0x31, 0x32, 0x33, 0x34, 0x35, 0x36],
-                    // type_: AvpType::DiameterIdentity,
-                    // value: Box::new(Integer32Avp::new(123456)),
-                    value: AvpType::Integer32(Integer32Avp::new(123)),
-                    padding: 0,
-                },
-                Avp {
-                    header: AvpHeader {
-                        code: 296,
-                        flags: AvpFlags {
-                            vendor: false,
-                            mandatory: true,
-                            private: false,
-                        },
-                        length: 4,
-                        vendor_id: None,
+                    None,
+                    AvpType::Integer32(Integer32Avp::new(123456)),
+                ),
+                Avp::new(
+                    264,
+                    AvpFlags {
+                        vendor: false,
+                        mandatory: true,
+                        private: false,
                     },
-                    value: AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
-                    padding: 0,
-                },
+                    Some(10248),
+                    AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
+                ),
             ],
         };
 

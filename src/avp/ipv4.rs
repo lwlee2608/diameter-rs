@@ -22,6 +22,10 @@ impl IPv4Avp {
 }
 
 impl AvpData for IPv4Avp {
+    fn length(&self) -> u32 {
+        4
+    }
+
     fn serialize(&self) -> Vec<u8> {
         return self.0.octets().to_vec();
     }

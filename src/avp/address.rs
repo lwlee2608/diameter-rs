@@ -16,6 +16,10 @@ impl<'a> AddressAvp<'a> {
 }
 
 impl AvpData for AddressAvp<'_> {
+    fn length(&self) -> u32 {
+        4
+    }
+
     fn serialize(&self) -> Vec<u8> {
         return self.0.to_vec();
     }

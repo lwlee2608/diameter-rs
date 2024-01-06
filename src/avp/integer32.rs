@@ -24,6 +24,10 @@ impl Integer32Avp {
 }
 
 impl AvpData for Integer32Avp {
+    fn length(&self) -> u32 {
+        4
+    }
+
     fn serialize(&self) -> Vec<u8> {
         return self.0.to_be_bytes().to_vec();
     }

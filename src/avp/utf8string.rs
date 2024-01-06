@@ -5,7 +5,6 @@ use std::io::Read;
 
 #[derive(Debug)]
 pub struct UTF8StringAvp(String);
-// pub struct UTF8StringAvp(String);
 
 impl UTF8StringAvp {
     pub fn new(value: &str) -> UTF8StringAvp {
@@ -27,6 +26,10 @@ impl UTF8StringAvp {
 }
 
 impl AvpData for UTF8StringAvp {
+    fn length(&self) -> u32 {
+        self.0.len() as u32
+    }
+
     fn serialize(&self) -> Vec<u8> {
         return self.0.as_bytes().to_vec();
     }

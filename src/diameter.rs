@@ -130,8 +130,8 @@ impl DiameterMessage {
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
             let avp = Avp::decode_from(reader)?;
-            offset += avp.header.length;
-            offset += avp.padding;
+            offset += avp.get_length();
+            offset += avp.get_padding();
             avps.push(avp);
         }
 
@@ -203,24 +203,24 @@ mod tests {
         let avps = &message.avps;
         assert_eq!(avps.len(), 2);
         let avp0 = &avps[0];
-        assert_eq!(avp0.header.code, 571);
-        assert_eq!(avp0.header.length, 12);
-        assert_eq!(avp0.header.flags.vendor, false);
-        assert_eq!(avp0.header.flags.mandatory, true);
-        assert_eq!(avp0.header.flags.private, false);
-        assert_eq!(avp0.header.vendor_id, None);
-        match avp0.value {
+        assert_eq!(avp0.get_code(), 571);
+        assert_eq!(avp0.get_length(), 12);
+        assert_eq!(avp0.get_flags().vendor, false);
+        assert_eq!(avp0.get_flags().mandatory, true);
+        assert_eq!(avp0.get_flags().private, false);
+        assert_eq!(avp0.get_vendor_id(), None);
+        match avp0.get_value() {
             AvpType::Integer32(ref v) => assert_eq!(v.value(), 1200),
             _ => panic!("unexpected avp type"),
         }
         let avp1 = &avps[1];
-        assert_eq!(avp1.header.code, 30);
-        assert_eq!(avp1.header.length, 18);
-        assert_eq!(avp1.header.flags.vendor, false);
-        assert_eq!(avp1.header.flags.mandatory, false);
-        assert_eq!(avp1.header.flags.private, false);
-        assert_eq!(avp1.header.vendor_id, None);
-        match avp1.value {
+        assert_eq!(avp1.get_code(), 30);
+        assert_eq!(avp1.get_length(), 18);
+        assert_eq!(avp1.get_flags().vendor, false);
+        assert_eq!(avp1.get_flags().mandatory, false);
+        assert_eq!(avp1.get_flags().private, false);
+        assert_eq!(avp1.get_vendor_id(), None);
+        match avp1.get_value() {
             AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
             _ => panic!("unexpected avp type"),
         }
