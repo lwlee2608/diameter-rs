@@ -5,14 +5,15 @@ use std::io::Read;
 
 #[derive(Debug)]
 pub struct UTF8StringAvp(String);
+// pub struct UTF8StringAvp(String);
 
 impl UTF8StringAvp {
-    pub fn new(value: String) -> UTF8StringAvp {
-        UTF8StringAvp(value)
+    pub fn new(value: &str) -> UTF8StringAvp {
+        UTF8StringAvp(value.to_string())
     }
 
-    pub fn value(&self) -> String {
-        self.0.clone() // TODO remove clone
+    pub fn value(&self) -> &str {
+        &self.0
     }
 
     pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<UTF8StringAvp, Error> {
@@ -44,23 +45,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_encode_decode() {
+    fn test_encode_decode_ascii() {
         let str = "Hello World";
-        let avp = UTF8StringAvp::new(str.to_string());
+        let avp = UTF8StringAvp::new(str);
         let encoded = avp.serialize();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
-        assert_eq!(avp.0, str.to_string());
+        assert_eq!(avp.0, str);
     }
 
     #[test]
     fn test_encode_decode_utf8() {
         let str = "世界,你好";
-        let avp = UTF8StringAvp::new(str.to_string());
+        let avp = UTF8StringAvp::new(str);
         let encoded = avp.serialize();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
-        assert_eq!(avp.0, str.to_string());
+        assert_eq!(avp.0, str);
     }
 
     #[test]

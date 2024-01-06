@@ -7,7 +7,7 @@ impl fmt::Display for DiameterMessage {
         write!(f, "{}\n", self.header)?;
         write!(
             f,
-            "  {:<40} {:>8} {:>5}  {} {} {}  {:<18}  {}\n",
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}\n",
             "AVP", "Vendor", "Code", "V", "M", "P", "Type", "Value"
         )?;
 
@@ -70,21 +70,18 @@ impl fmt::Display for ApplicationId {
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let avp_name = get_avp_name(self.header.code);
-        let avp_type = get_avp_type(self.header.code);
-        let value = self.value.to_string();
-        // let value = get_avp_value(&self.data);
 
         write!(
             f,
-            "  {:<40} {:>8} {:>5}  {} {} {}  {:<18}  {}",
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
             avp_name,
             self.header.code,
             self.header.code.clone() as u32,
             get_bool_unicode(self.header.flags.vendor),
             get_bool_unicode(self.header.flags.mandatory),
             get_bool_unicode(self.header.flags.private),
-            avp_type,
-            value
+            self.value.get_type(),
+            self.value.to_string()
         )
     }
 }
@@ -105,18 +102,11 @@ fn get_avp_name(code: u32) -> String {
     }
 }
 
-fn get_avp_type(_code: u32) -> String {
-    "DiameterIdentity".to_string()
-}
-
-// fn get_avp_value(data: &[u8]) -> String {
-//     String::from_utf8_lossy(data).to_string()
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::avp::integer32::Integer32Avp;
+    use crate::avp::utf8string::UTF8StringAvp;
     use crate::avp::{AvpFlags, AvpHeader, AvpType};
     use crate::diameter::CommandFlags;
 
@@ -166,10 +156,7 @@ mod tests {
                         length: 4,
                         vendor_id: None,
                     },
-                    // data: vec![0x37, 0x38, 0x39, 0x30],
-                    // type_: AvpType::DiameterIdentity,
-                    // value: Box::new(Integer32Avp::new(123456)),
-                    value: AvpType::Integer32(Integer32Avp::new(123)),
+                    value: AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
                     padding: 0,
                 },
             ],

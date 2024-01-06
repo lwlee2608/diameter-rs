@@ -23,20 +23,23 @@
 pub mod address;
 pub mod integer32;
 pub mod ipv4;
+pub mod octetstring;
 pub mod utf8string;
 
 use crate::error::Error;
 use core::fmt;
 use std::io::Read;
+use std::io::Seek;
+use std::io::SeekFrom;
 
 use self::integer32::Integer32Avp;
+use self::ipv4::IPv4Avp;
+use self::octetstring::OctetStringAvp;
 use self::utf8string::UTF8StringAvp;
 
 #[derive(Debug)]
 pub struct Avp {
     pub header: AvpHeader,
-    // pub data: Vec<u8>,
-    // pub type_: AvpType,
     // pub value: Box<dyn AvpData>,
     pub value: AvpType,
     pub padding: u32,
@@ -60,7 +63,7 @@ pub struct AvpFlags {
 #[derive(Debug)]
 pub enum AvpType {
     // Address(address::AddressAvp),
-    AddressIPv4(ipv4::IPv4Avp),
+    AddressIPv4(IPv4Avp),
     // AddressIPv6,
     // DiameterIdentity,
     // DiameterURI,
@@ -68,21 +71,33 @@ pub enum AvpType {
     // Float32,
     // Float64,
     // Grouped,
-    Integer32(integer32::Integer32Avp),
+    Integer32(Integer32Avp),
     // Integer64,
-    // OctetString,
+    OctetString(OctetStringAvp),
     // Time,
     // Unsigned32,
     // Unsigned64,
-    UTF8String(utf8string::UTF8StringAvp),
+    UTF8String(UTF8StringAvp),
 }
 
 impl fmt::Display for AvpType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AvpType::AddressIPv4(ipv4_avp) => write!(f, "AddressIPv4: {}", ipv4_avp),
-            AvpType::Integer32(integer32_avp) => write!(f, "Integer32: {}", integer32_avp),
-            AvpType::UTF8String(utf8_string_avp) => write!(f, "UTF8String: {}", utf8_string_avp),
+            AvpType::AddressIPv4(ipv4_avp) => ipv4_avp.fmt(f),
+            AvpType::Integer32(integer32_avp) => integer32_avp.fmt(f),
+            AvpType::UTF8String(utf8_string_avp) => utf8_string_avp.fmt(f),
+            AvpType::OctetString(octet_string_avp) => octet_string_avp.fmt(f),
+        }
+    }
+}
+
+impl AvpType {
+    pub fn get_type(&self) -> String {
+        match self {
+            AvpType::AddressIPv4(_) => "AddressIPv4".to_string(),
+            AvpType::Integer32(_) => "Integer32".to_string(),
+            AvpType::UTF8String(_) => "UTF8String".to_string(),
+            AvpType::OctetString(_) => "OctetString".to_string(),
         }
     }
 }
@@ -129,15 +144,16 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Avp, Error> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp, Error> {
         let header = AvpHeader::decode_from(reader)?;
 
-        let header_length = 8 + if header.flags.vendor { 4 } else { 0 };
+        let header_length = if header.flags.vendor { 12 } else { 8 };
         let value_length = header.length - header_length;
 
         // Hardcode for now
         let value = match header.code {
             30 => AvpType::UTF8String(UTF8StringAvp::decode_from(reader, value_length as usize)?),
+            44 => AvpType::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?),
             571 => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
             _ => AvpType::Integer32(Integer32Avp::decode_from(reader)?),
         };
@@ -145,10 +161,7 @@ impl Avp {
         // Skip padding
         let padding = Avp::pad_to_32_bits(value_length);
         if padding > 0 {
-            // TODO need Seek trait
-            // reader.seek(SeekFrom::Current(bytes_to_skip as i64))?;
-            let mut b = vec![0u8; padding as usize];
-            reader.read_exact(&mut b)?;
+            reader.seek(SeekFrom::Current(padding as i64))?;
         }
 
         return Ok(Avp {
@@ -175,7 +188,7 @@ impl Avp {
         }
     }
 
-    pub fn get_utf8string(&self) -> Option<String> {
+    pub fn get_utf8string(&self) -> Option<&str> {
         match &self.value {
             AvpType::UTF8String(avp) => Some(avp.value()),
             _ => None,

@@ -28,6 +28,7 @@ use crate::error::Error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::io::Read;
+use std::io::Seek;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
@@ -121,7 +122,7 @@ impl DiameterHeader {
 
 impl DiameterMessage {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterMessage, Error> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
 
