@@ -1,4 +1,3 @@
-use crate::avp::AvpData;
 use crate::error::Error;
 use std::fmt;
 
@@ -13,15 +12,9 @@ impl<'a> AddressAvp<'a> {
     pub fn decode_from(b: &'a [u8]) -> Result<AddressAvp, Error> {
         Ok(AddressAvp(b))
     }
-}
 
-impl AvpData for AddressAvp<'_> {
-    fn length(&self) -> u32 {
+    pub fn length(&self) -> u32 {
         4
-    }
-
-    fn serialize(&self) -> Vec<u8> {
-        return self.0.to_vec();
     }
 }
 

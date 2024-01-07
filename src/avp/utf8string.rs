@@ -1,7 +1,7 @@
-use crate::avp::AvpData;
 use crate::error::Error;
 use std::fmt;
 use std::io::Read;
+use std::io::Write;
 
 #[derive(Debug)]
 pub struct UTF8StringAvp(String);
@@ -23,15 +23,14 @@ impl UTF8StringAvp {
             .map_err(|e| Error::DecodeError(format!("invalid UTF8StringAvp: {}", e)))?;
         Ok(UTF8StringAvp(s))
     }
-}
 
-impl AvpData for UTF8StringAvp {
-    fn length(&self) -> u32 {
-        self.0.len() as u32
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        writer.write_all(self.0.as_bytes())?;
+        Ok(())
     }
 
-    fn serialize(&self) -> Vec<u8> {
-        return self.0.as_bytes().to_vec();
+    pub fn length(&self) -> u32 {
+        self.0.len() as u32
     }
 }
 
@@ -51,7 +50,8 @@ mod tests {
     fn test_encode_decode_ascii() {
         let str = "Hello World";
         let avp = UTF8StringAvp::new(str);
-        let encoded = avp.serialize();
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
         assert_eq!(avp.0, str);
@@ -61,7 +61,8 @@ mod tests {
     fn test_encode_decode_utf8() {
         let str = "世界,你好";
         let avp = UTF8StringAvp::new(str);
-        let encoded = avp.serialize();
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
         assert_eq!(avp.0, str);

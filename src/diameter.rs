@@ -1,6 +1,4 @@
 /*
- * Diameter Header.
- *
  * Raw packet format:
  *   0                   1                   2                   3
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -14,6 +12,10 @@
  *  |                      Hop-by-Hop Identifier                    |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  |                      End-to-End Identifier                    |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                              AVPs                             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                              ...                              |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Command Flags:
@@ -31,6 +33,7 @@ use num_traits::FromPrimitive;
 use std::fmt;
 use std::io::Read;
 use std::io::Seek;
+use std::io::Write;
 
 const HEADER_LENGTH: u32 = 20;
 const REQUEST_FLAG: u8 = 0x80;
@@ -138,6 +141,16 @@ impl DiameterMessage {
 
         Ok(DiameterMessage { header, avps })
     }
+
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        self.header.encode_to(writer)?;
+
+        for avp in &self.avps {
+            avp.encode_to(writer)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[rustfmt::skip]
@@ -169,6 +182,33 @@ impl DiameterHeader {
             hop_by_hop_id,
             end_to_end_id,
         })
+    }
+
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        // version
+        writer.write_all(&[self.version])?;
+
+        // Length
+        let length_bytes = &self.length.to_be_bytes()[1..4];
+        writer.write_all(length_bytes)?;
+
+        // flags
+        writer.write_all(&[self.flags])?;
+        
+        // Code
+        let code = self.code.clone() as u32; // TODO check if cloning enum to u32 is costly
+        let code_bytes = &code.to_be_bytes()[1..4];                                     
+        writer.write_all(code_bytes)?;
+
+        // Application-ID
+        let application_id = self.application_id.clone() as u32;
+        writer.write_all(&application_id.to_be_bytes())?;
+
+        // Hop-by-Hop Identifier and End-to-End Identifier
+        writer.write_all(&self.hop_by_hop_id.to_be_bytes())?;
+        writer.write_all(&self.end_to_end_id.to_be_bytes())?;
+
+        Ok(())
     }
 }
 
@@ -262,7 +302,7 @@ impl fmt::Display for Avp {
             get_bool_unicode(self.get_flags().vendor),
             get_bool_unicode(self.get_flags().mandatory),
             get_bool_unicode(self.get_flags().private),
-            self.get_value().get_type(),
+            self.get_value().get_type_name(),
             self.get_value().to_string()
         )
     }
@@ -286,7 +326,7 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn test_decode_header() {
+    fn test_decode_encode_header() {
         let data = [
             0x01, 0x00, 0x00, 0x14, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
@@ -306,10 +346,14 @@ mod tests {
         assert_eq!(header.application_id, ApplicationId::CreditControl);
         assert_eq!(header.hop_by_hop_id, 3);
         assert_eq!(header.end_to_end_id, 4);
+
+        let mut encoded = Vec::new();
+        header.encode_to(&mut encoded).unwrap();
+        assert_eq!(encoded, data);
     }
 
     #[test]
-    fn test_decode_diameter_message() {
+    fn test_decode_encode_diameter_message() {
         let data = [
             0x01, 0x00, 0x00, 0x34, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
@@ -354,6 +398,10 @@ mod tests {
             AvpValue::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
             _ => panic!("unexpected avp type"),
         }
+
+        let mut encoded = Vec::new();
+        message.encode_to(&mut encoded).unwrap();
+        assert_eq!(encoded, data);
     }
 
     #[test]

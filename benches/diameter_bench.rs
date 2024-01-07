@@ -19,11 +19,37 @@ fn bench_decode_header(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_encode_header(b: &mut Bencher) {
+    let data = test_data();
+    let mut cursor = Cursor::new(&data);
+    let header = DiameterHeader::decode_from(&mut cursor).unwrap();
+
+    let mut encoded = Vec::new();
+    b.iter(|| {
+        encoded.clear();
+        black_box(header.encode_to(&mut encoded).unwrap());
+    });
+}
+
+#[bench]
 fn bench_decode_message(b: &mut Bencher) {
     let data = test_data_2();
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
         black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+    });
+}
+
+#[bench]
+fn bench_encode_message(b: &mut Bencher) {
+    let data = test_data_2();
+    let mut cursor = Cursor::new(&data);
+    let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+
+    let mut encoded = Vec::new();
+    b.iter(|| {
+        encoded.clear();
+        black_box(message.encode_to(&mut encoded).unwrap());
     });
 }
 

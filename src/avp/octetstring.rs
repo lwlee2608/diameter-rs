@@ -1,7 +1,7 @@
-use crate::avp::AvpData;
 use crate::error::Error;
 use std::fmt;
 use std::io::Read;
+use std::io::Write;
 
 #[derive(Debug)]
 pub struct OctetStringAvp(Vec<u8>);
@@ -20,15 +20,14 @@ impl OctetStringAvp {
         reader.read_exact(&mut b)?;
         Ok(OctetStringAvp(b))
     }
-}
 
-impl AvpData for OctetStringAvp {
-    fn length(&self) -> u32 {
-        self.0.len() as u32
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        writer.write_all(&self.0)?;
+        Ok(())
     }
 
-    fn serialize(&self) -> Vec<u8> {
-        return self.0.clone();
+    pub fn length(&self) -> u32 {
+        self.0.len() as u32
     }
 }
 
@@ -54,7 +53,8 @@ mod tests {
     fn test_encode_decode_ascii() {
         let bytes = b"Hello World";
         let avp = OctetStringAvp::new(bytes.to_vec());
-        let encoded = avp.serialize();
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
         assert_eq!(avp.0, bytes);
@@ -64,7 +64,8 @@ mod tests {
     fn test_encode_decode_utf8() {
         let bytes = "世界,你好".as_bytes();
         let avp = OctetStringAvp::new(bytes.to_vec());
-        let encoded = avp.serialize();
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
         assert_eq!(avp.0, bytes);
@@ -74,7 +75,8 @@ mod tests {
     fn test_decode_invalid_utf8() {
         let bytes = vec![0x61, 0x62, 0x63, 0x64, 0x80];
         let avp = OctetStringAvp::new(bytes.to_vec());
-        let encoded = avp.serialize();
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
         assert_eq!(avp.0, bytes);
