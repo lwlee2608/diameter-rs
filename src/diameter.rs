@@ -27,26 +27,27 @@ use crate::avp::Avp;
 use crate::error::Error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use std::fmt;
 use std::io::Read;
 use std::io::Seek;
-
-#[derive(Debug)]
-pub struct DiameterMessage {
-    pub header: DiameterHeader,
-    pub avps: Vec<Avp>,
-}
 
 const HEADER_LENGTH: u32 = 20;
 
 #[derive(Debug)]
+pub struct DiameterMessage {
+    header: DiameterHeader,
+    avps: Vec<Avp>,
+}
+
+#[derive(Debug)]
 pub struct DiameterHeader {
-    pub version: u8,
-    pub length: u32,
-    pub flags: CommandFlags,
-    pub code: CommandCode,
-    pub application_id: ApplicationId,
-    pub hop_by_hop_id: u32,
-    pub end_to_end_id: u32,
+    version: u8,
+    length: u32,
+    flags: CommandFlags,
+    code: CommandCode,
+    application_id: ApplicationId,
+    hop_by_hop_id: u32,
+    end_to_end_id: u32,
 }
 
 #[derive(Debug)]
@@ -81,6 +82,60 @@ pub enum ApplicationId {
     Gx = 16777238,
     Rx = 16777236,
     Sy = 16777302,
+}
+
+impl DiameterMessage {
+    pub fn new(
+        code: CommandCode,
+        application_id: ApplicationId,
+        flags: CommandFlags,
+        hop_by_hop_id: u32,
+        end_to_end_id: u32,
+        avps: Vec<Avp>,
+    ) -> DiameterMessage {
+        let header = DiameterHeader {
+            version: 1,
+            length: 0,
+            flags,
+            code,
+            application_id,
+            hop_by_hop_id,
+            end_to_end_id,
+        };
+        DiameterMessage { header, avps }
+    }
+
+    pub fn get_header(&self) -> &DiameterHeader {
+        &self.header
+    }
+
+    pub fn get_avps(&self) -> &Vec<Avp> {
+        &self.avps
+    }
+
+    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
+        let header = DiameterHeader::decode_from(reader)?;
+        let mut avps = Vec::new();
+
+        let total_length = header.length;
+        let mut offset = HEADER_LENGTH;
+        while offset < total_length {
+            let avp = Avp::decode_from(reader)?;
+            offset += avp.get_length();
+            offset += avp.get_padding();
+            avps.push(avp);
+        }
+
+        // sanity check, make sure everything is read
+        if offset != total_length {
+            return Err(Error::DecodeError(
+                "Invalid diameter message, length mismatch".into(),
+            ));
+        }
+
+        Ok(DiameterMessage { header, avps })
+    }
 }
 
 #[rustfmt::skip]
@@ -120,35 +175,117 @@ impl DiameterHeader {
     }
 }
 
-impl DiameterMessage {
-    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
-        let header = DiameterHeader::decode_from(reader)?;
-        let mut avps = Vec::new();
+impl fmt::Display for DiameterMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}\n", self.get_header())?;
+        write!(
+            f,
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}\n",
+            "AVP", "Vendor", "Code", "V", "M", "P", "Type", "Value"
+        )?;
 
-        let total_length = header.length;
-        let mut offset = HEADER_LENGTH;
-        while offset < total_length {
-            let avp = Avp::decode_from(reader)?;
-            offset += avp.get_length();
-            offset += avp.get_padding();
-            avps.push(avp);
+        for avp in self.get_avps() {
+            write!(f, "{}\n", avp)?;
         }
 
-        // sanity check, make sure everything is read
-        if offset != total_length {
-            return Err(Error::DecodeError(
-                "Invalid diameter message, length mismatch".into(),
-            ));
-        }
+        Ok(())
+    }
+}
 
-        Ok(DiameterMessage { header, avps })
+impl fmt::Display for CommandCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for ApplicationId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for Avp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let avp_name = get_avp_name(self.get_code());
+        let vendor_id = match self.get_vendor_id() {
+            Some(v) => v.to_string(),
+            None => "".to_string(),
+        };
+
+        write!(
+            f,
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
+            avp_name,
+            vendor_id,
+            self.get_code(),
+            get_bool_unicode(self.get_flags().vendor),
+            get_bool_unicode(self.get_flags().mandatory),
+            get_bool_unicode(self.get_flags().private),
+            self.get_value().get_type(),
+            self.get_value().to_string()
+        )
+    }
+}
+
+impl fmt::Display for DiameterHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let request_flag = if self.flags.request {
+            "Request"
+        } else {
+            "Answer"
+        };
+        let error_flag = if self.flags.error { "Error" } else { "" };
+        let proxyable_flag = if self.flags.proxyable {
+            "Proxyable"
+        } else {
+            ""
+        };
+        let retransmit_flag = if self.flags.retransmit {
+            "Retransmit"
+        } else {
+            ""
+        };
+
+        write!(
+            f,
+            "{} {}({}) {}({}) {}{}{}{} {}, {}",
+            self.version,
+            self.code,
+            self.code.clone() as u32,
+            self.application_id,
+            self.application_id.clone() as u32,
+            request_flag,
+            error_flag,
+            proxyable_flag,
+            retransmit_flag,
+            self.hop_by_hop_id,
+            self.end_to_end_id
+        )
+    }
+}
+
+fn get_bool_unicode(v: bool) -> &'static str {
+    if v {
+        "✓"
+    } else {
+        "✗"
+    }
+}
+
+fn get_avp_name(code: u32) -> String {
+    match code {
+        264 => "Session-Id".to_string(),
+        296 => "Origin-Realm".to_string(),
+        _ => "Unknown".to_string(),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::avp::AvpType;
+    use crate::avp::integer32::Integer32Avp;
+    use crate::avp::utf8string::UTF8StringAvp;
+    use crate::avp::{AvpFlags, AvpType};
+    use crate::diameter::CommandFlags;
 
     use super::*;
     use std::io::Cursor;
@@ -224,5 +361,45 @@ mod tests {
             AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
             _ => panic!("unexpected avp type"),
         }
+    }
+
+    #[test]
+    fn test_diameter_struct() {
+        let message = DiameterMessage::new(
+            CommandCode::CreditControl,
+            ApplicationId::CreditControl,
+            CommandFlags {
+                request: true,
+                proxyable: false,
+                error: false,
+                retransmit: false,
+            },
+            1123158610,
+            3102381851,
+            vec![
+                Avp::new(
+                    296,
+                    AvpFlags {
+                        vendor: false,
+                        mandatory: true,
+                        private: false,
+                    },
+                    None,
+                    AvpType::Integer32(Integer32Avp::new(123456)),
+                ),
+                Avp::new(
+                    264,
+                    AvpFlags {
+                        vendor: false,
+                        mandatory: true,
+                        private: false,
+                    },
+                    Some(10248),
+                    AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
+                ),
+            ],
+        );
+
+        println!("diameter message: {}", message);
     }
 }
