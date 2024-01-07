@@ -291,11 +291,19 @@ impl Avp {
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         self.header.encode_to(writer)?;
 
-        match &self.value {
+        let _ = match &self.value {
             AvpValue::Integer32(avp) => avp.encode_to(writer),
             AvpValue::UTF8String(avp) => avp.encode_to(writer),
+            AvpValue::OctetString(avp) => avp.encode_to(writer),
             _ => Ok(()),
+        };
+
+        // Padding
+        for _ in 0..self.padding {
+            writer.write_all(&[0])?;
         }
+
+        Ok(())
     }
 
     fn pad_to_32_bits(length: u32) -> u8 {
