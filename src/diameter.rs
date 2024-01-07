@@ -24,6 +24,7 @@
  *
  */
 use crate::avp::Avp;
+use crate::dictionary;
 use crate::error::Error;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -188,41 +189,6 @@ impl fmt::Display for DiameterMessage {
     }
 }
 
-impl fmt::Display for CommandCode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl fmt::Display for ApplicationId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl fmt::Display for Avp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let avp_name = get_avp_name(self.get_code());
-        let vendor_id = match self.get_vendor_id() {
-            Some(v) => v.to_string(),
-            None => "".to_string(),
-        };
-
-        write!(
-            f,
-            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
-            avp_name,
-            vendor_id,
-            self.get_code(),
-            get_bool_unicode(self.get_flags().vendor),
-            get_bool_unicode(self.get_flags().mandatory),
-            get_bool_unicode(self.get_flags().private),
-            self.get_value().get_type(),
-            self.get_value().to_string()
-        )
-    }
-}
-
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let request_flag = if self.flags & REQUEST_FLAG != 0 {
@@ -264,19 +230,49 @@ impl fmt::Display for DiameterHeader {
     }
 }
 
+impl fmt::Display for CommandCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for ApplicationId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl fmt::Display for Avp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let avp_name = dictionary::DEFAULT_DICT
+            .get_avp_name(self.get_code().clone() as u32)
+            .unwrap_or("Unknown".to_string());
+
+        let vendor_id = match self.get_vendor_id() {
+            Some(v) => v.to_string(),
+            None => "".to_string(),
+        };
+
+        write!(
+            f,
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
+            avp_name,
+            vendor_id,
+            self.get_code(),
+            get_bool_unicode(self.get_flags().vendor),
+            get_bool_unicode(self.get_flags().mandatory),
+            get_bool_unicode(self.get_flags().private),
+            self.get_value().get_type(),
+            self.get_value().to_string()
+        )
+    }
+}
+
 fn get_bool_unicode(v: bool) -> &'static str {
     if v {
         "✓"
     } else {
         "✗"
-    }
-}
-
-fn get_avp_name(code: u32) -> String {
-    match code {
-        264 => "Session-Id".to_string(),
-        296 => "Origin-Realm".to_string(),
-        _ => "Unknown".to_string(),
     }
 }
 
