@@ -280,7 +280,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 mod tests {
     use crate::avp::integer32::Integer32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
-    use crate::avp::AvpType;
+    use crate::avp::AvpValue;
 
     use super::*;
     use std::io::Cursor;
@@ -328,6 +328,7 @@ mod tests {
 
         let mut cursor = Cursor::new(&data);
         let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        println!("diameter message: {}", message);
 
         let avps = &message.avps;
         assert_eq!(avps.len(), 2);
@@ -339,7 +340,7 @@ mod tests {
         assert_eq!(avp0.get_flags().private, false);
         assert_eq!(avp0.get_vendor_id(), None);
         match avp0.get_value() {
-            AvpType::Integer32(ref v) => assert_eq!(v.value(), 1200),
+            AvpValue::Integer32(ref v) => assert_eq!(v.value(), 1200),
             _ => panic!("unexpected avp type"),
         }
         let avp1 = &avps[1];
@@ -350,7 +351,7 @@ mod tests {
         assert_eq!(avp1.get_flags().private, false);
         assert_eq!(avp1.get_vendor_id(), None);
         match avp1.get_value() {
-            AvpType::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
+            AvpValue::UTF8String(ref v) => assert_eq!(v.value(), "foobar1234"),
             _ => panic!("unexpected avp type"),
         }
     }
@@ -367,14 +368,14 @@ mod tests {
         message.add_avp(Avp::new(
             296,
             None,
-            AvpType::Integer32(Integer32Avp::new(123456)),
+            AvpValue::Integer32(Integer32Avp::new(123456)),
             true,
             false,
         ));
         message.add_avp(Avp::new(
             264,
             Some(10248),
-            AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
+            AvpValue::UTF8String(UTF8StringAvp::new("ses;12345888")),
             true,
             false,
         ));
