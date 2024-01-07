@@ -1,7 +1,5 @@
 /*
- * The AVP header.
- *
- * AVP header format:
+ * AVP format:
  *   0                   1                   2                   3
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -10,6 +8,10 @@
  *  |  Flags       |                 AVP Length                     |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  |                         Vendor ID (optional)                  |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                             Data                              |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                             Data             |    Padding     |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * AVP Flags:
@@ -22,8 +24,11 @@
 
 pub mod address;
 pub mod integer32;
+pub mod integer64;
 pub mod ipv4;
 pub mod octetstring;
+pub mod unsigned32;
+pub mod unsigned64;
 pub mod utf8string;
 
 use crate::dictionary;
@@ -35,8 +40,11 @@ use std::io::SeekFrom;
 use std::io::Write;
 
 use self::integer32::Integer32Avp;
+use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
 use self::octetstring::OctetStringAvp;
+use self::unsigned32::Unsigned32Avp;
+use self::unsigned64::Unsigned64Avp;
 use self::utf8string::UTF8StringAvp;
 
 const VENDOR_FLAG: u8 = 0x80;
@@ -98,21 +106,24 @@ pub enum AvpValue {
     // Float64,
     // Grouped,
     Integer32(Integer32Avp),
-    // Integer64,
+    Integer64(Integer64Avp),
     OctetString(OctetStringAvp),
     // Time,
-    // Unsigned32,
-    // Unsigned64,
+    Unsigned32(Unsigned32Avp),
+    Unsigned64(Unsigned64Avp),
     UTF8String(UTF8StringAvp),
 }
 
 impl fmt::Display for AvpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            AvpValue::AddressIPv4(ipv4_avp) => ipv4_avp.fmt(f),
-            AvpValue::Integer32(integer32_avp) => integer32_avp.fmt(f),
-            AvpValue::UTF8String(utf8_string_avp) => utf8_string_avp.fmt(f),
-            AvpValue::OctetString(octet_string_avp) => octet_string_avp.fmt(f),
+            AvpValue::AddressIPv4(avp) => avp.fmt(f),
+            AvpValue::Integer32(avp) => avp.fmt(f),
+            AvpValue::Integer64(avp) => avp.fmt(f),
+            AvpValue::UTF8String(avp) => avp.fmt(f),
+            AvpValue::OctetString(avp) => avp.fmt(f),
+            AvpValue::Unsigned32(avp) => avp.fmt(f),
+            AvpValue::Unsigned64(avp) => avp.fmt(f),
         }
     }
 }
@@ -122,17 +133,23 @@ impl AvpValue {
         match self {
             AvpValue::AddressIPv4(avp) => avp.length(),
             AvpValue::Integer32(avp) => avp.length(),
+            AvpValue::Integer64(avp) => avp.length(),
             AvpValue::UTF8String(avp) => avp.length(),
             AvpValue::OctetString(avp) => avp.length(),
+            AvpValue::Unsigned32(avp) => avp.length(),
+            AvpValue::Unsigned64(avp) => avp.length(),
         }
     }
 
-    pub fn get_type(&self) -> String {
+    pub fn get_type_name(&self) -> &'static str {
         match self {
-            AvpValue::AddressIPv4(_) => "AddressIPv4".to_string(),
-            AvpValue::Integer32(_) => "Integer32".to_string(),
-            AvpValue::UTF8String(_) => "UTF8String".to_string(),
-            AvpValue::OctetString(_) => "OctetString".to_string(),
+            AvpValue::AddressIPv4(_) => "AddressIPv4",
+            AvpValue::Integer32(_) => "Integer32",
+            AvpValue::Integer64(_) => "Integer64",
+            AvpValue::UTF8String(_) => "UTF8String",
+            AvpValue::OctetString(_) => "OctetString",
+            AvpValue::Unsigned32(_) => "Unsigned32",
+            AvpValue::Unsigned64(_) => "Unsigned64",
         }
     }
 }

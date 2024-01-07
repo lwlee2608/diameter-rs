@@ -4,22 +4,22 @@ use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct Integer32Avp(i32);
+pub struct Unsigned64Avp(u64);
 
-impl Integer32Avp {
-    pub fn new(value: i32) -> Integer32Avp {
-        Integer32Avp(value)
+impl Unsigned64Avp {
+    pub fn new(value: u64) -> Unsigned64Avp {
+        Unsigned64Avp(value)
     }
 
-    pub fn value(&self) -> i32 {
+    pub fn value(&self) -> u64 {
         self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Integer32Avp, Error> {
-        let mut b = [0; 4];
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Unsigned64Avp, Error> {
+        let mut b = [0; 8];
         reader.read_exact(&mut b)?;
-        let num = i32::from_be_bytes(b);
-        Ok(Integer32Avp(num))
+        let num = u64::from_be_bytes(b);
+        Ok(Unsigned64Avp(num))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
@@ -28,11 +28,11 @@ impl Integer32Avp {
     }
 
     pub fn length(&self) -> u32 {
-        4
+        8
     }
 }
 
-impl fmt::Display for Integer32Avp {
+impl fmt::Display for Unsigned64Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -45,11 +45,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode() {
-        let avp = Integer32Avp::new(-1234567890);
+        let avp = Unsigned64Avp::new(123456789000000000);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = Integer32Avp::decode_from(&mut cursor).unwrap();
-        assert_eq!(avp.0, -1234567890);
+        let avp = Unsigned64Avp::decode_from(&mut cursor).unwrap();
+        assert_eq!(avp.0, 123456789000000000);
     }
 }

@@ -1,6 +1,4 @@
 /*
- * Diameter Header.
- *
  * Raw packet format:
  *   0                   1                   2                   3
  *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -14,6 +12,10 @@
  *  |                      Hop-by-Hop Identifier                    |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *  |                      End-to-End Identifier                    |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                              AVPs                             |
+ *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *  |                              ...                              |
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  *
  * Command Flags:
@@ -300,7 +302,7 @@ impl fmt::Display for Avp {
             get_bool_unicode(self.get_flags().vendor),
             get_bool_unicode(self.get_flags().mandatory),
             get_bool_unicode(self.get_flags().private),
-            self.get_value().get_type(),
+            self.get_value().get_type_name(),
             self.get_value().to_string()
         )
     }
