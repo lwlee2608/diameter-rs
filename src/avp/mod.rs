@@ -153,21 +153,24 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn new(code: u32, flags: AvpFlags, vendor_id: Option<u32>, value: AvpType) -> Avp {
+    pub fn new(code: u32, vendor_id: Option<u32>, value: AvpType, mflag: bool, pflag: bool) -> Avp {
+        let header_length = if vendor_id.is_some() { 12 } else { 8 };
+        let padding = Avp::pad_to_32_bits(value.length());
         let header = AvpHeader {
             code,
-            flags,
-            length: 0,
+            flags: AvpFlags {
+                vendor: if vendor_id.is_some() { true } else { false },
+                mandatory: mflag,
+                private: pflag,
+            },
+            length: header_length + value.length() + padding,
             vendor_id,
         };
-
-        let padding = Avp::pad_to_32_bits(value.length());
-
-        Avp {
+        return Avp {
             header,
             value,
             padding,
-        }
+        };
     }
 
     pub fn get_code(&self) -> u32 {

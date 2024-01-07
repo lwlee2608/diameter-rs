@@ -32,6 +32,10 @@ use std::io::Read;
 use std::io::Seek;
 
 const HEADER_LENGTH: u32 = 20;
+const REQUEST_FLAG: u8 = 0x80;
+const PROXYABLE_FLAG: u8 = 0x40;
+const ERROR_FLAG: u8 = 0x20;
+const RETRANSMIT_FLAG: u8 = 0x10;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
@@ -43,19 +47,11 @@ pub struct DiameterMessage {
 pub struct DiameterHeader {
     version: u8,
     length: u32,
-    flags: CommandFlags,
+    flags: u8,
     code: CommandCode,
     application_id: ApplicationId,
     hop_by_hop_id: u32,
     end_to_end_id: u32,
-}
-
-#[derive(Debug)]
-pub struct CommandFlags {
-    pub request: bool,
-    pub proxyable: bool,
-    pub error: bool,
-    pub retransmit: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, FromPrimitive)]
@@ -88,29 +84,34 @@ impl DiameterMessage {
     pub fn new(
         code: CommandCode,
         application_id: ApplicationId,
-        flags: CommandFlags,
+        flags: u8,
         hop_by_hop_id: u32,
         end_to_end_id: u32,
-        avps: Vec<Avp>,
     ) -> DiameterMessage {
         let header = DiameterHeader {
             version: 1,
-            length: 0,
+            length: HEADER_LENGTH,
             flags,
             code,
             application_id,
             hop_by_hop_id,
             end_to_end_id,
         };
+        let avps = Vec::new();
         DiameterMessage { header, avps }
-    }
-
-    pub fn get_header(&self) -> &DiameterHeader {
-        &self.header
     }
 
     pub fn get_avps(&self) -> &Vec<Avp> {
         &self.avps
+    }
+
+    pub fn add_avp(&mut self, avp: Avp) {
+        self.header.length += avp.get_length();
+        self.avps.push(avp);
+    }
+
+    pub fn get_length(&self) -> u32 {
+        self.header.length
     }
 
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
@@ -151,12 +152,7 @@ impl DiameterHeader {
 
         let version = b[0];
         let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
-        let flags = CommandFlags {
-            request:    (b[4] & 0x80) != 0,
-            proxyable:  (b[4] & 0x40) != 0,
-            error:      (b[4] & 0x20) != 0,
-            retransmit: (b[4] & 0x10) != 0,
-        };
+        let flags = b[4];
 
         let code            = u32::from_be_bytes([0,     b[5],  b[6],  b[7]]);
         let application_id  = u32::from_be_bytes([b[8],  b[9],  b[10], b[11]]);
@@ -177,14 +173,14 @@ impl DiameterHeader {
 
 impl fmt::Display for DiameterMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\n", self.get_header())?;
+        write!(f, "{}\n", self.header)?;
         write!(
             f,
             "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}\n",
             "AVP", "Vendor", "Code", "V", "M", "P", "Type", "Value"
         )?;
 
-        for avp in self.get_avps() {
+        for avp in &self.avps {
             write!(f, "{}\n", avp)?;
         }
 
@@ -229,18 +225,22 @@ impl fmt::Display for Avp {
 
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let request_flag = if self.flags.request {
+        let request_flag = if self.flags & REQUEST_FLAG != 0 {
             "Request"
         } else {
             "Answer"
         };
-        let error_flag = if self.flags.error { "Error" } else { "" };
-        let proxyable_flag = if self.flags.proxyable {
+        let error_flag = if self.flags & ERROR_FLAG != 0 {
+            "Error"
+        } else {
+            ""
+        };
+        let proxyable_flag = if self.flags & PROXYABLE_FLAG != 0 {
             "Proxyable"
         } else {
             ""
         };
-        let retransmit_flag = if self.flags.retransmit {
+        let retransmit_flag = if self.flags & RETRANSMIT_FLAG != 0 {
             "Retransmit"
         } else {
             ""
@@ -284,8 +284,7 @@ fn get_avp_name(code: u32) -> String {
 mod tests {
     use crate::avp::integer32::Integer32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
-    use crate::avp::{AvpFlags, AvpType};
-    use crate::diameter::CommandFlags;
+    use crate::avp::AvpType;
 
     use super::*;
     use std::io::Cursor;
@@ -306,10 +305,7 @@ mod tests {
 
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
-        assert_eq!(header.flags.request, true);
-        assert_eq!(header.flags.proxyable, false);
-        assert_eq!(header.flags.error, false);
-        assert_eq!(header.flags.retransmit, false);
+        assert_eq!(header.flags, REQUEST_FLAG);
         assert_eq!(header.code, CommandCode::CreditControl);
         assert_eq!(header.application_id, ApplicationId::CreditControl);
         assert_eq!(header.hop_by_hop_id, 3);
@@ -365,40 +361,29 @@ mod tests {
 
     #[test]
     fn test_diameter_struct() {
-        let message = DiameterMessage::new(
+        let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            CommandFlags {
-                request: true,
-                proxyable: false,
-                error: false,
-                retransmit: false,
-            },
+            REQUEST_FLAG | PROXYABLE_FLAG,
             1123158610,
             3102381851,
-            vec![
-                Avp::new(
-                    296,
-                    AvpFlags {
-                        vendor: false,
-                        mandatory: true,
-                        private: false,
-                    },
-                    None,
-                    AvpType::Integer32(Integer32Avp::new(123456)),
-                ),
-                Avp::new(
-                    264,
-                    AvpFlags {
-                        vendor: false,
-                        mandatory: true,
-                        private: false,
-                    },
-                    Some(10248),
-                    AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
-                ),
-            ],
         );
+        message.add_avp(Avp::new(
+            296,
+            None,
+            AvpType::Integer32(Integer32Avp::new(123456)),
+            true,
+            false,
+        ));
+        message.add_avp(Avp::new(
+            264,
+            Some(10248),
+            AvpType::UTF8String(UTF8StringAvp::new("ses;12345888")),
+            true,
+            false,
+        ));
+
+        assert_eq!(message.get_length(), 56);
 
         println!("diameter message: {}", message);
     }
