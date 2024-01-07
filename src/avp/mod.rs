@@ -39,6 +39,10 @@ use self::ipv4::IPv4Avp;
 use self::octetstring::OctetStringAvp;
 use self::utf8string::UTF8StringAvp;
 
+const VENDOR_FLAG: u8 = 0x80;
+const MANDATORY_FLAG: u8 = 0x40;
+const PRIVATE_FLAG: u8 = 0x20;
+
 #[derive(Debug)]
 pub struct Avp {
     header: AvpHeader,
@@ -141,9 +145,9 @@ impl AvpHeader {
         let code = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
 
         let flags = AvpFlags {
-            vendor: (b[4] & 0x80) != 0,
-            mandatory: (b[4] & 0x40) != 0,
-            private: (b[4] & 0x20) != 0,
+            vendor: (b[4] & VENDOR_FLAG) != 0,
+            mandatory: (b[4] & MANDATORY_FLAG) != 0,
+            private: (b[4] & PRIVATE_FLAG) != 0,
         };
 
         let length = u32::from_be_bytes([0, b[5], b[6], b[7]]);
@@ -170,6 +174,31 @@ impl AvpHeader {
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        // Code
+        writer.write_all(&self.code.to_be_bytes())?;
+
+        // Flags
+        let mut flags: u8 = 0;
+        if self.flags.vendor {
+            flags |= VENDOR_FLAG;
+        }
+        if self.flags.mandatory {
+            flags |= MANDATORY_FLAG;
+        }
+        if self.flags.private {
+            flags |= PRIVATE_FLAG;
+        }
+        writer.write_all(&[flags])?;
+
+        // Length
+        let length_bytes = &self.length.to_be_bytes()[1..4];
+        writer.write_all(length_bytes)?;
+
+        // Vendor ID
+        if let Some(vendor_id) = self.vendor_id {
+            writer.write_all(&vendor_id.to_be_bytes())?;
+        }
+
         Ok(())
     }
 }
@@ -286,24 +315,6 @@ impl Avp {
             _ => None,
         }
     }
-    // pub fn serialize(&self) -> Vec<u8> {
-    //     match &self.v {
-    //         AvpValue::Integer32(avp) => avp.serialize(),
-    //         AvpValue::UTF8String(avp) => avp.serialize(),
-    //         _ => Vec::new(),
-    //     }
-    // }
-    // pub fn deserialize(&self, b: &[u8]) {
-    //     match &self.v {
-    //         AvpValue::Integer32(_) => {
-    //             let _avp = Integer32Avp::decode_from(&b).unwrap();
-    //         }
-    //         AvpValue::UTF8String(_) => {
-    //             let _avp = UTF8StringAvp::decode_from(&b).unwrap();
-    //         }
-    //         _ => (),
-    //     }
-    // }
 }
 
 #[cfg(test)]
@@ -312,7 +323,7 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn test_decode_header() {
+    fn test_decode_encode_header() {
         let data = [
             0x00, 0x00, 0x00, 0x64, // command code
             0x40, 0x00, 0x00, 0x0C, // flags, length
@@ -327,10 +338,14 @@ mod tests {
         assert_eq!(header.flags.mandatory, true);
         assert_eq!(header.flags.private, false);
         assert_eq!(header.vendor_id, None);
+
+        let mut encoded = Vec::new();
+        header.encode_to(&mut encoded).unwrap();
+        assert_eq!(encoded, data);
     }
 
     #[test]
-    fn test_decode_header_with_vendor() {
+    fn test_decode_encode_header_with_vendor() {
         let data = [
             0x00, 0x00, 0x00, 0x64, // command code
             0x80, 0x00, 0x00, 0x0C, // flags, length
@@ -346,5 +361,9 @@ mod tests {
         assert_eq!(header.flags.mandatory, false);
         assert_eq!(header.flags.private, false);
         assert_eq!(header.vendor_id, Some(200));
+
+        let mut encoded = Vec::new();
+        header.encode_to(&mut encoded).unwrap();
+        assert_eq!(encoded, data);
     }
 }
