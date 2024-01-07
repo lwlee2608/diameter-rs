@@ -42,7 +42,7 @@ use self::utf8string::UTF8StringAvp;
 pub struct Avp {
     header: AvpHeader,
     value: AvpValue,
-    padding: u32,
+    padding: u8,
 }
 
 #[derive(Debug)]
@@ -191,7 +191,7 @@ impl Avp {
                 mandatory: mflag,
                 private: pflag,
             },
-            length: header_length + value.length() + padding,
+            length: header_length + value.length() + padding as u32,
             vendor_id,
         };
         return Avp {
@@ -217,7 +217,7 @@ impl Avp {
         self.header.length
     }
 
-    pub fn get_padding(&self) -> u32 {
+    pub fn get_padding(&self) -> u8 {
         self.padding
     }
 
@@ -260,13 +260,8 @@ impl Avp {
         });
     }
 
-    fn pad_to_32_bits(length: u32) -> u32 {
-        let pad_required = length & 0b11;
-        if pad_required != 0 {
-            4 - pad_required
-        } else {
-            0
-        }
+    fn pad_to_32_bits(length: u32) -> u8 {
+        ((4 - (length & 0b11)) % 4) as u8
     }
 
     pub fn get_integer32(&self) -> Option<i32> {

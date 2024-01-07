@@ -125,7 +125,7 @@ impl DiameterMessage {
         while offset < total_length {
             let avp = Avp::decode_from(reader)?;
             offset += avp.get_length();
-            offset += avp.get_padding();
+            offset += avp.get_padding() as u32;
             avps.push(avp);
         }
 
