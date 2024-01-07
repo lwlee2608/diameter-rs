@@ -32,6 +32,7 @@ use core::fmt;
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;
+use std::io::Write;
 
 use self::integer32::Integer32Avp;
 use self::ipv4::IPv4Avp;
@@ -132,11 +133,6 @@ impl AvpValue {
     }
 }
 
-pub trait AvpData: std::fmt::Debug + std::fmt::Display {
-    fn serialize(&self) -> Vec<u8>;
-    fn length(&self) -> u32;
-}
-
 impl AvpHeader {
     pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader, Error> {
         let mut b = [0; 8];
@@ -171,6 +167,10 @@ impl AvpHeader {
                 vendor_id: None,
             })
         }
+    }
+
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        Ok(())
     }
 }
 
@@ -256,8 +256,17 @@ impl Avp {
             header,
             value,
             padding,
-            // value: Box::new(value),
         });
+    }
+
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        self.header.encode_to(writer)?;
+
+        match &self.value {
+            AvpValue::Integer32(avp) => avp.encode_to(writer),
+            AvpValue::UTF8String(avp) => avp.encode_to(writer),
+            _ => Ok(()),
+        }
     }
 
     fn pad_to_32_bits(length: u32) -> u8 {
