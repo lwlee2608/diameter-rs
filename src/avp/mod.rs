@@ -23,6 +23,9 @@
  */
 
 pub mod address;
+pub mod enumerated;
+pub mod float32;
+pub mod float64;
 pub mod integer32;
 pub mod integer64;
 pub mod ipv4;
@@ -39,6 +42,9 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
+use self::enumerated::EnumeratedAvp;
+use self::float32::Float32Avp;
+use self::float64::Float64Avp;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
@@ -101,9 +107,9 @@ pub enum AvpValue {
     // AddressIPv6,
     // DiameterIdentity,
     // DiameterURI,
-    // Enumerated,
-    // Float32,
-    // Float64,
+    Enumerated(EnumeratedAvp),
+    Float32(Float32Avp),
+    Float64(Float64Avp),
     // Grouped,
     Integer32(Integer32Avp),
     Integer64(Integer64Avp),
@@ -118,12 +124,15 @@ impl fmt::Display for AvpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AvpValue::AddressIPv4(avp) => avp.fmt(f),
+            AvpValue::Float32(avp) => avp.fmt(f),
+            AvpValue::Float64(avp) => avp.fmt(f),
+            AvpValue::Enumerated(avp) => avp.fmt(f),
             AvpValue::Integer32(avp) => avp.fmt(f),
             AvpValue::Integer64(avp) => avp.fmt(f),
-            AvpValue::UTF8String(avp) => avp.fmt(f),
-            AvpValue::OctetString(avp) => avp.fmt(f),
             AvpValue::Unsigned32(avp) => avp.fmt(f),
             AvpValue::Unsigned64(avp) => avp.fmt(f),
+            AvpValue::UTF8String(avp) => avp.fmt(f),
+            AvpValue::OctetString(avp) => avp.fmt(f),
         }
     }
 }
@@ -132,24 +141,30 @@ impl AvpValue {
     pub fn length(&self) -> u32 {
         match self {
             AvpValue::AddressIPv4(avp) => avp.length(),
+            AvpValue::Float32(avp) => avp.length(),
+            AvpValue::Float64(avp) => avp.length(),
+            AvpValue::Enumerated(avp) => avp.length(),
             AvpValue::Integer32(avp) => avp.length(),
             AvpValue::Integer64(avp) => avp.length(),
-            AvpValue::UTF8String(avp) => avp.length(),
-            AvpValue::OctetString(avp) => avp.length(),
             AvpValue::Unsigned32(avp) => avp.length(),
             AvpValue::Unsigned64(avp) => avp.length(),
+            AvpValue::UTF8String(avp) => avp.length(),
+            AvpValue::OctetString(avp) => avp.length(),
         }
     }
 
     pub fn get_type_name(&self) -> &'static str {
         match self {
             AvpValue::AddressIPv4(_) => "AddressIPv4",
+            AvpValue::Float32(_) => "Float32",
+            AvpValue::Float64(_) => "Float64",
+            AvpValue::Enumerated(_) => "Enumerated",
             AvpValue::Integer32(_) => "Integer32",
             AvpValue::Integer64(_) => "Integer64",
-            AvpValue::UTF8String(_) => "UTF8String",
-            AvpValue::OctetString(_) => "OctetString",
             AvpValue::Unsigned32(_) => "Unsigned32",
             AvpValue::Unsigned64(_) => "Unsigned64",
+            AvpValue::UTF8String(_) => "UTF8String",
+            AvpValue::OctetString(_) => "OctetString",
         }
     }
 }
@@ -282,14 +297,21 @@ impl Avp {
             .unwrap_or(&AvpType::Unknown);
 
         let value = match avp_type {
+            AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4Avp::decode_from(reader)?),
+            AvpType::Float32 => AvpValue::Float32(Float32Avp::decode_from(reader)?),
+            AvpType::Float64 => AvpValue::Float64(Float64Avp::decode_from(reader)?),
+            AvpType::Enumerated => AvpValue::Enumerated(EnumeratedAvp::decode_from(reader)?),
             AvpType::Integer32 => AvpValue::Integer32(Integer32Avp::decode_from(reader)?),
+            AvpType::Integer64 => AvpValue::Integer64(Integer64Avp::decode_from(reader)?),
+            AvpType::Unsigned32 => AvpValue::Unsigned32(Unsigned32Avp::decode_from(reader)?),
+            AvpType::Unsigned64 => AvpValue::Unsigned64(Unsigned64Avp::decode_from(reader)?),
             AvpType::UTF8String => {
                 AvpValue::UTF8String(UTF8StringAvp::decode_from(reader, value_length as usize)?)
             }
             AvpType::OctetString => {
                 AvpValue::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?)
             }
-            _ => AvpValue::Integer32(Integer32Avp::decode_from(reader)?),
+            _ => todo!(),
         };
 
         // Skip padding
@@ -309,10 +331,17 @@ impl Avp {
         self.header.encode_to(writer)?;
 
         let _ = match &self.value {
+            AvpValue::AddressIPv4(avp) => avp.encode_to(writer),
+            AvpValue::Float32(avp) => avp.encode_to(writer),
+            AvpValue::Float64(avp) => avp.encode_to(writer),
+            AvpValue::Enumerated(avp) => avp.encode_to(writer),
             AvpValue::Integer32(avp) => avp.encode_to(writer),
+            AvpValue::Integer64(avp) => avp.encode_to(writer),
+            AvpValue::Unsigned32(avp) => avp.encode_to(writer),
+            AvpValue::Unsigned64(avp) => avp.encode_to(writer),
             AvpValue::UTF8String(avp) => avp.encode_to(writer),
             AvpValue::OctetString(avp) => avp.encode_to(writer),
-            _ => Ok(()),
+            // _ => todo!(),
         };
 
         // Padding
