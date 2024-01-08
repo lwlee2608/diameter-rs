@@ -2,6 +2,9 @@
 name = "diameter"
 version = "0.0.1"
 edition = "2021"
+authors = ["Jason Lee<lwlee2608@gmail.com>"]
+description = "Rust Implementation of the Diameter Protocol."
+license = "MIT"
 
 [dependencies]
 num-traits = "0.2"
