@@ -58,7 +58,7 @@ pub struct DiameterHeader {
     end_to_end_id: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, FromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum CommandCode {
     Error = 0,
     CapabilitiesExchange = 257,
@@ -74,7 +74,7 @@ pub enum CommandCode {
     AA = 265,
 }
 
-#[derive(Debug, Clone, PartialEq, FromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum ApplicationId {
     Common = 0,
     Accounting = 3,
@@ -196,12 +196,12 @@ impl DiameterHeader {
         writer.write_all(&[self.flags])?;
         
         // Code
-        let code = self.code.clone() as u32; // TODO check if cloning enum to u32 is costly
+        let code = self.code as u32;
         let code_bytes = &code.to_be_bytes()[1..4];                                     
         writer.write_all(code_bytes)?;
 
         // Application-ID
-        let application_id = self.application_id.clone() as u32;
+        let application_id = self.application_id as u32;
         writer.write_all(&application_id.to_be_bytes())?;
 
         // Hop-by-Hop Identifier and End-to-End Identifier
@@ -257,9 +257,9 @@ impl fmt::Display for DiameterHeader {
             "{} {}({}) {}({}) {}{}{}{} {}, {}",
             self.version,
             self.code,
-            self.code.clone() as u32,
+            self.code as u32,
             self.application_id,
-            self.application_id.clone() as u32,
+            self.application_id as u32,
             request_flag,
             error_flag,
             proxyable_flag,
@@ -285,8 +285,8 @@ impl fmt::Display for ApplicationId {
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let avp_name = dictionary::DEFAULT_DICT
-            .get_avp_name(self.get_code().clone() as u32)
-            .unwrap_or("Unknown".to_string());
+            .get_avp_name(self.get_code() as u32)
+            .unwrap_or("Unknown");
 
         let vendor_id = match self.get_vendor_id() {
             Some(v) => v.to_string(),

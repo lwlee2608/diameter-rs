@@ -67,9 +67,9 @@ impl Definition {
         }
     }
 
-    pub fn get_avp_name(&self, code: u32) -> Option<String> {
+    pub fn get_avp_name(&self, code: u32) -> Option<&str> {
         match self.avps.get(&code) {
-            Some(avp) => Some(avp.name.clone()),
+            Some(avp) => Some(&avp.name),
             None => None,
         }
     }
