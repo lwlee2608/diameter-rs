@@ -54,7 +54,7 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
-        assert_eq!(avp.0, str);
+        assert_eq!(avp.value(), str);
     }
 
     #[test]
@@ -65,7 +65,7 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = UTF8StringAvp::decode_from(&mut cursor, str.len()).unwrap();
-        assert_eq!(avp.0, str);
+        assert_eq!(avp.value(), str);
     }
 
     #[test]

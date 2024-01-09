@@ -11,7 +11,7 @@ impl OctetStringAvp {
         OctetStringAvp(value)
     }
 
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn value(&self) -> &[u8] {
         &self.0
     }
 
@@ -57,7 +57,7 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
-        assert_eq!(avp.0, bytes);
+        assert_eq!(avp.value(), bytes);
     }
 
     #[test]
@@ -68,7 +68,7 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
-        assert_eq!(avp.0, bytes);
+        assert_eq!(avp.value(), bytes);
     }
 
     #[test]
@@ -79,6 +79,6 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
-        assert_eq!(avp.0, bytes);
+        assert_eq!(avp.value(), bytes);
     }
 }

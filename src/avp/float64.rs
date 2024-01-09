@@ -50,6 +50,6 @@ mod tests {
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
         let avp = Float64Avp::decode_from(&mut cursor).unwrap();
-        assert_eq!(avp.0, -3.142);
+        assert_eq!(avp.value(), -3.142);
     }
 }

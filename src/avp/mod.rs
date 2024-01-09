@@ -26,6 +26,7 @@ pub mod address;
 pub mod enumerated;
 pub mod float32;
 pub mod float64;
+pub mod identity;
 pub mod integer32;
 pub mod integer64;
 pub mod ipv4;
@@ -33,6 +34,7 @@ pub mod ipv6;
 pub mod octetstring;
 pub mod unsigned32;
 pub mod unsigned64;
+pub mod uri;
 pub mod utf8string;
 
 use crate::dictionary;
@@ -46,6 +48,7 @@ use std::io::Write;
 use self::enumerated::EnumeratedAvp;
 use self::float32::Float32Avp;
 use self::float64::Float64Avp;
+use self::identity::DiameterIdentity;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
@@ -53,6 +56,7 @@ use self::ipv6::IPv6Avp;
 use self::octetstring::OctetStringAvp;
 use self::unsigned32::Unsigned32Avp;
 use self::unsigned64::Unsigned64Avp;
+use self::uri::DiameterURI;
 use self::utf8string::UTF8StringAvp;
 
 const VENDOR_FLAG: u8 = 0x80;
@@ -107,8 +111,8 @@ pub enum AvpValue {
     // Address(address::AddressAvp),
     AddressIPv4(IPv4Avp),
     AddressIPv6(IPv6Avp),
-    // DiameterIdentity,
-    // DiameterURI,
+    DiameterIdentity(DiameterIdentity),
+    DiameterURI(DiameterURI),
     Enumerated(EnumeratedAvp),
     Float32(Float32Avp),
     Float64(Float64Avp),
@@ -136,6 +140,8 @@ impl fmt::Display for AvpValue {
             AvpValue::Unsigned64(avp) => avp.fmt(f),
             AvpValue::UTF8String(avp) => avp.fmt(f),
             AvpValue::OctetString(avp) => avp.fmt(f),
+            AvpValue::DiameterIdentity(avp) => avp.fmt(f),
+            AvpValue::DiameterURI(avp) => avp.fmt(f),
         }
     }
 }
@@ -154,6 +160,8 @@ impl AvpValue {
             AvpValue::Unsigned64(avp) => avp.length(),
             AvpValue::UTF8String(avp) => avp.length(),
             AvpValue::OctetString(avp) => avp.length(),
+            AvpValue::DiameterIdentity(avp) => avp.length(),
+            AvpValue::DiameterURI(avp) => avp.length(),
         }
     }
 
@@ -170,6 +178,8 @@ impl AvpValue {
             AvpValue::Unsigned64(_) => "Unsigned64",
             AvpValue::UTF8String(_) => "UTF8String",
             AvpValue::OctetString(_) => "OctetString",
+            AvpValue::DiameterIdentity(_) => "DiameterIdentity",
+            AvpValue::DiameterURI(_) => "DiameterURI",
         }
     }
 }
@@ -303,6 +313,7 @@ impl Avp {
 
         let value = match avp_type {
             AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4Avp::decode_from(reader)?),
+            AvpType::AddressIPv6 => AvpValue::AddressIPv6(IPv6Avp::decode_from(reader)?),
             AvpType::Float32 => AvpValue::Float32(Float32Avp::decode_from(reader)?),
             AvpType::Float64 => AvpValue::Float64(Float64Avp::decode_from(reader)?),
             AvpType::Enumerated => AvpValue::Enumerated(EnumeratedAvp::decode_from(reader)?),
@@ -315,6 +326,13 @@ impl Avp {
             }
             AvpType::OctetString => {
                 AvpValue::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?)
+            }
+            AvpType::DiameterIdentity => AvpValue::DiameterIdentity(DiameterIdentity::decode_from(
+                reader,
+                value_length as usize,
+            )?),
+            AvpType::DiameterURI => {
+                AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
             _ => todo!(),
         };
@@ -347,6 +365,8 @@ impl Avp {
             AvpValue::Unsigned64(avp) => avp.encode_to(writer),
             AvpValue::UTF8String(avp) => avp.encode_to(writer),
             AvpValue::OctetString(avp) => avp.encode_to(writer),
+            AvpValue::DiameterIdentity(avp) => avp.encode_to(writer),
+            AvpValue::DiameterURI(avp) => avp.encode_to(writer),
             // _ => todo!(),
         };
 
