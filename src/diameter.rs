@@ -1,3 +1,13 @@
+use crate::avp::Avp;
+use crate::dictionary;
+use crate::error::Error;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
+use std::fmt;
+use std::io::Read;
+use std::io::Seek;
+use std::io::Write;
+
 /*
  * Raw packet format:
  *   0                   1                   2                   3
@@ -25,15 +35,6 @@
  *  +-+-+-+-+-+-+-+-+
  *
  */
-use crate::avp::Avp;
-use crate::dictionary;
-use crate::error::Error;
-use num_derive::FromPrimitive;
-use num_traits::FromPrimitive;
-use std::fmt;
-use std::io::Read;
-use std::io::Seek;
-use std::io::Write;
 
 const HEADER_LENGTH: u32 = 20;
 const REQUEST_FLAG: u8 = 0x80;
@@ -58,6 +59,7 @@ pub struct DiameterHeader {
     end_to_end_id: u32,
 }
 
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum CommandCode {
     Error = 0,
@@ -74,6 +76,7 @@ pub enum CommandCode {
     AA = 265,
 }
 
+#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum ApplicationId {
     Common = 0,
@@ -153,7 +156,6 @@ impl DiameterMessage {
     }
 }
 
-#[rustfmt::skip]
 impl DiameterHeader {
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
     pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Error> {
@@ -161,24 +163,33 @@ impl DiameterHeader {
         reader.read_exact(&mut b)?;
 
         if b.len() < HEADER_LENGTH as usize {
-            return Err(Error::DecodeError("Invalid diameter header, too short".into()));
+            return Err(Error::DecodeError(
+                "Invalid diameter header, too short".into(),
+            ));
         }
 
         let version = b[0];
         let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
         let flags = b[4];
 
-        let code            = u32::from_be_bytes([0,     b[5],  b[6],  b[7]]);
-        let application_id  = u32::from_be_bytes([b[8],  b[9],  b[10], b[11]]);
-        let hop_by_hop_id   = u32::from_be_bytes([b[12], b[13], b[14], b[15]]);
-        let end_to_end_id   = u32::from_be_bytes([b[16], b[17], b[18], b[19]]);
+        let code = u32::from_be_bytes([0, b[5], b[6], b[7]]);
+        let application_id = u32::from_be_bytes([b[8], b[9], b[10], b[11]]);
+        let hop_by_hop_id = u32::from_be_bytes([b[12], b[13], b[14], b[15]]);
+        let end_to_end_id = u32::from_be_bytes([b[16], b[17], b[18], b[19]]);
+
+        let code = CommandCode::from_u32(code)
+            .ok_or_else(|| Error::DecodeError(format!("Unknown Command Code: {}", code).into()))?;
+
+        let application_id = ApplicationId::from_u32(application_id).ok_or_else(|| {
+            Error::DecodeError(format!("Unknown Application ID: {}", application_id).into())
+        })?;
 
         Ok(DiameterHeader {
             version,
             length,
             flags,
-            code:           FromPrimitive::from_u32(code).unwrap(),
-            application_id: FromPrimitive::from_u32(application_id).unwrap(),
+            code,
+            application_id,
             hop_by_hop_id,
             end_to_end_id,
         })
@@ -194,10 +205,10 @@ impl DiameterHeader {
 
         // flags
         writer.write_all(&[self.flags])?;
-        
+
         // Code
         let code = self.code as u32;
-        let code_bytes = &code.to_be_bytes()[1..4];                                     
+        let code_bytes = &code.to_be_bytes()[1..4];
         writer.write_all(code_bytes)?;
 
         // Application-ID
@@ -209,6 +220,18 @@ impl DiameterHeader {
         writer.write_all(&self.end_to_end_id.to_be_bytes())?;
 
         Ok(())
+    }
+}
+
+impl CommandCode {
+    pub fn from_u32(code: u32) -> Option<CommandCode> {
+        FromPrimitive::from_u32(code)
+    }
+}
+
+impl ApplicationId {
+    pub fn from_u32(application_id: u32) -> Option<ApplicationId> {
+        FromPrimitive::from_u32(application_id)
     }
 }
 
