@@ -29,6 +29,7 @@ pub mod float64;
 pub mod integer32;
 pub mod integer64;
 pub mod ipv4;
+pub mod ipv6;
 pub mod octetstring;
 pub mod unsigned32;
 pub mod unsigned64;
@@ -48,6 +49,7 @@ use self::float64::Float64Avp;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
+use self::ipv6::IPv6Avp;
 use self::octetstring::OctetStringAvp;
 use self::unsigned32::Unsigned32Avp;
 use self::unsigned64::Unsigned64Avp;
@@ -104,7 +106,7 @@ pub enum AvpType {
 pub enum AvpValue {
     // Address(address::AddressAvp),
     AddressIPv4(IPv4Avp),
-    // AddressIPv6,
+    AddressIPv6(IPv6Avp),
     // DiameterIdentity,
     // DiameterURI,
     Enumerated(EnumeratedAvp),
@@ -124,6 +126,7 @@ impl fmt::Display for AvpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             AvpValue::AddressIPv4(avp) => avp.fmt(f),
+            AvpValue::AddressIPv6(avp) => avp.fmt(f),
             AvpValue::Float32(avp) => avp.fmt(f),
             AvpValue::Float64(avp) => avp.fmt(f),
             AvpValue::Enumerated(avp) => avp.fmt(f),
@@ -141,6 +144,7 @@ impl AvpValue {
     pub fn length(&self) -> u32 {
         match self {
             AvpValue::AddressIPv4(avp) => avp.length(),
+            AvpValue::AddressIPv6(avp) => avp.length(),
             AvpValue::Float32(avp) => avp.length(),
             AvpValue::Float64(avp) => avp.length(),
             AvpValue::Enumerated(avp) => avp.length(),
@@ -156,6 +160,7 @@ impl AvpValue {
     pub fn get_type_name(&self) -> &'static str {
         match self {
             AvpValue::AddressIPv4(_) => "AddressIPv4",
+            AvpValue::AddressIPv6(_) => "AddressIPv6",
             AvpValue::Float32(_) => "Float32",
             AvpValue::Float64(_) => "Float64",
             AvpValue::Enumerated(_) => "Enumerated",
@@ -332,6 +337,7 @@ impl Avp {
 
         let _ = match &self.value {
             AvpValue::AddressIPv4(avp) => avp.encode_to(writer),
+            AvpValue::AddressIPv6(avp) => avp.encode_to(writer),
             AvpValue::Float32(avp) => avp.encode_to(writer),
             AvpValue::Float64(avp) => avp.encode_to(writer),
             AvpValue::Enumerated(avp) => avp.encode_to(writer),
