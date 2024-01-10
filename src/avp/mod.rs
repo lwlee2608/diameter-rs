@@ -32,6 +32,7 @@ pub mod integer64;
 pub mod ipv4;
 pub mod ipv6;
 pub mod octetstring;
+pub mod time;
 pub mod unsigned32;
 pub mod unsigned64;
 pub mod uri;
@@ -54,6 +55,7 @@ use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
 use self::ipv6::IPv6Avp;
 use self::octetstring::OctetStringAvp;
+use self::time::TimeAvp;
 use self::unsigned32::Unsigned32Avp;
 use self::unsigned64::Unsigned64Avp;
 use self::uri::DiameterURI;
@@ -120,7 +122,7 @@ pub enum AvpValue {
     Integer32(Integer32Avp),
     Integer64(Integer64Avp),
     OctetString(OctetStringAvp),
-    // Time,
+    Time(TimeAvp),
     Unsigned32(Unsigned32Avp),
     Unsigned64(Unsigned64Avp),
     UTF8String(UTF8StringAvp),
@@ -142,6 +144,7 @@ impl fmt::Display for AvpValue {
             AvpValue::OctetString(avp) => avp.fmt(f),
             AvpValue::DiameterIdentity(avp) => avp.fmt(f),
             AvpValue::DiameterURI(avp) => avp.fmt(f),
+            AvpValue::Time(avp) => avp.fmt(f),
         }
     }
 }
@@ -162,6 +165,7 @@ impl AvpValue {
             AvpValue::OctetString(avp) => avp.length(),
             AvpValue::DiameterIdentity(avp) => avp.length(),
             AvpValue::DiameterURI(avp) => avp.length(),
+            AvpValue::Time(avp) => avp.length(),
         }
     }
 
@@ -180,6 +184,7 @@ impl AvpValue {
             AvpValue::OctetString(_) => "OctetString",
             AvpValue::DiameterIdentity(_) => "DiameterIdentity",
             AvpValue::DiameterURI(_) => "DiameterURI",
+            AvpValue::Time(_) => "Time",
         }
     }
 }
@@ -334,6 +339,7 @@ impl Avp {
             AvpType::DiameterURI => {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
+            AvpType::Time => AvpValue::Time(TimeAvp::decode_from(reader)?),
             _ => todo!(),
         };
 
@@ -367,6 +373,7 @@ impl Avp {
             AvpValue::OctetString(avp) => avp.encode_to(writer),
             AvpValue::DiameterIdentity(avp) => avp.encode_to(writer),
             AvpValue::DiameterURI(avp) => avp.encode_to(writer),
+            AvpValue::Time(avp) => avp.encode_to(writer),
             // _ => todo!(),
         };
 
