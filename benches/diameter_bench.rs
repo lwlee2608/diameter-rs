@@ -1,10 +1,19 @@
 #![feature(test)]
 
 extern crate test;
-use std::io::Cursor;
-
+use diameter::avp::enumerated::EnumeratedAvp;
+use diameter::avp::identity::DiameterIdentityAvp;
+use diameter::avp::unsigned32::Unsigned32Avp;
+use diameter::avp::utf8string::UTF8StringAvp;
+use diameter::avp::Avp;
+use diameter::avp::AvpValue;
+use diameter::diameter::ApplicationId;
+use diameter::diameter::CommandCode;
 use diameter::diameter::DiameterHeader;
 use diameter::diameter::DiameterMessage;
+use diameter::diameter::PROXYABLE_FLAG;
+use diameter::diameter::REQUEST_FLAG;
+use std::io::Cursor;
 use test::black_box;
 use test::Bencher;
 
@@ -53,6 +62,28 @@ fn bench_encode_message(b: &mut Bencher) {
     });
 }
 
+#[bench]
+fn bench_decode_cca(b: &mut Bencher) {
+    let message = cca_message();
+    let mut data = Vec::new();
+    message.encode_to(&mut data).unwrap();
+
+    b.iter(|| {
+        let mut cursor = Cursor::new(&data);
+        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+    });
+}
+
+#[bench]
+fn bench_encode_cca(b: &mut Bencher) {
+    let message = cca_message();
+    let mut encoded = Vec::new();
+    b.iter(|| {
+        encoded.clear();
+        black_box(message.encode_to(&mut encoded).unwrap());
+    });
+}
+
 fn test_data() -> &'static [u8] {
     return &[
         0x01, 0x00, 0x00, 0x14, // version, length
@@ -79,6 +110,59 @@ fn test_data_2() -> &'static [u8] {
         0x61, 0x72, 0x31, 0x32, // value
         0x33, 0x34, 0x00, 0x00,
     ];
+}
+
+fn cca_message() -> DiameterMessage {
+    let mut message = DiameterMessage::new(
+        CommandCode::CreditControl,
+        ApplicationId::CreditControl,
+        REQUEST_FLAG | PROXYABLE_FLAG,
+        1123158610,
+        3102381851,
+    );
+    message.add_avp(Avp::new(
+        264,
+        None,
+        AvpValue::DiameterIdentity(DiameterIdentityAvp::new("host.example.com")),
+        true,
+        false,
+    ));
+    message.add_avp(Avp::new(
+        296,
+        None,
+        AvpValue::DiameterIdentity(DiameterIdentityAvp::new("realm.example.com")),
+        true,
+        false,
+    ));
+    message.add_avp(Avp::new(
+        263,
+        None,
+        AvpValue::UTF8String(UTF8StringAvp::new("ses;12345888")),
+        true,
+        false,
+    ));
+    message.add_avp(Avp::new(
+        268,
+        None,
+        AvpValue::Unsigned32(Unsigned32Avp::new(2001)),
+        true,
+        false,
+    ));
+    message.add_avp(Avp::new(
+        416,
+        None,
+        AvpValue::Enumerated(EnumeratedAvp::new(1)),
+        true,
+        false,
+    ));
+    message.add_avp(Avp::new(
+        415,
+        None,
+        AvpValue::Unsigned32(Unsigned32Avp::new(1000)),
+        true,
+        false,
+    ));
+    message
 }
 
 fn main() {}

@@ -1,24 +1,24 @@
-use crate::avp::OctetStringAvp;
+use crate::avp::UTF8StringAvp;
 use crate::error::Error;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct DiameterIdentity(OctetStringAvp);
+pub struct DiameterIdentityAvp(UTF8StringAvp);
 
-impl DiameterIdentity {
-    pub fn new(value: Vec<u8>) -> DiameterIdentity {
-        DiameterIdentity(OctetStringAvp::new(value))
+impl DiameterIdentityAvp {
+    pub fn new(value: &str) -> DiameterIdentityAvp {
+        DiameterIdentityAvp(UTF8StringAvp::new(value))
     }
 
-    pub fn value(&self) -> &[u8] {
+    pub fn value(&self) -> &str {
         self.0.value()
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterIdentity, Error> {
-        let avp = OctetStringAvp::decode_from(reader, len)?;
-        Ok(DiameterIdentity(avp))
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterIdentityAvp, Error> {
+        let avp = UTF8StringAvp::decode_from(reader, len)?;
+        Ok(DiameterIdentityAvp(avp))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
@@ -31,15 +31,9 @@ impl DiameterIdentity {
     }
 }
 
-impl fmt::Display for DiameterIdentity {
+impl fmt::Display for DiameterIdentityAvp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (index, &byte) in self.0.value().iter().enumerate() {
-            if index > 0 {
-                write!(f, " ")?;
-            }
-            write!(f, "{:02x}", byte)?;
-        }
-        Ok(())
+        write!(f, "{}", self.0.value())
     }
 }
 
@@ -51,12 +45,12 @@ mod tests {
 
     #[test]
     fn test_encode_decode_ascii() {
-        let bytes = b"example.com";
-        let avp = DiameterIdentity::new(bytes.to_vec());
+        let bytes = "example.com";
+        let avp = DiameterIdentityAvp::new(bytes);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = OctetStringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
+        let avp = UTF8StringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
         assert_eq!(avp.value(), bytes);
     }
 }

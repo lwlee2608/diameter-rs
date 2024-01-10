@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Error {
     DecodeError(String),
     EncodeError(String),
+    UnknownAvpCode(u32),
     IoError(std::io::Error),
     TryFromSliceError(std::array::TryFromSliceError),
 }
@@ -13,6 +14,7 @@ impl fmt::Display for Error {
         match self {
             Error::DecodeError(msg) => write!(f, "{}", msg),
             Error::EncodeError(msg) => write!(f, "{}", msg),
+            Error::UnknownAvpCode(code) => write!(f, "Unknown AVP code: {}", code),
             Error::IoError(e) => write!(f, "{}", e),
             Error::TryFromSliceError(e) => write!(f, "{}", e),
         }

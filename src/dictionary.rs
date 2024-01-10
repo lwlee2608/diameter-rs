@@ -17,14 +17,34 @@ lazy_static! {
     pub static ref DEFAULT_DICT: Definition = {
         let mut definition = Definition::new();
         definition.add_avp(AvpDefinition {
-            code: 264,
+            code: 263,
             name: String::from("Session-Id"),
             avp_type: AvpType::UTF8String,
         });
         definition.add_avp(AvpDefinition {
+            code: 264,
+            name: String::from("Origin-Host"),
+            avp_type: AvpType::DiameterIdentity,
+        });
+        definition.add_avp(AvpDefinition {
             code: 296,
             name: String::from("Origin-Realm"),
-            avp_type: AvpType::OctetString,
+            avp_type: AvpType::DiameterIdentity,
+        });
+        definition.add_avp(AvpDefinition {
+            code: 268,
+            name: String::from("Result-Code"),
+            avp_type: AvpType::Unsigned32,
+        });
+        definition.add_avp(AvpDefinition {
+            code: 415,
+            name: String::from("CC-Request-Number"),
+            avp_type: AvpType::Unsigned32,
+        });
+        definition.add_avp(AvpDefinition {
+            code: 416,
+            name: String::from("CC-Request-Type"),
+            avp_type: AvpType::Enumerated,
         });
         definition.add_avp(AvpDefinition {
             code: 30,

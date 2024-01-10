@@ -36,11 +36,11 @@ use std::io::Write;
  *
  */
 
-const HEADER_LENGTH: u32 = 20;
-const REQUEST_FLAG: u8 = 0x80;
-const PROXYABLE_FLAG: u8 = 0x40;
-const ERROR_FLAG: u8 = 0x20;
-const RETRANSMIT_FLAG: u8 = 0x10;
+pub const HEADER_LENGTH: u32 = 20;
+pub const REQUEST_FLAG: u8 = 0x80;
+pub const PROXYABLE_FLAG: u8 = 0x40;
+pub const ERROR_FLAG: u8 = 0x20;
+pub const RETRANSMIT_FLAG: u8 = 0x10;
 
 #[derive(Debug)]
 pub struct DiameterMessage {
@@ -341,7 +341,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use crate::avp::integer32::Integer32Avp;
+    use crate::avp::identity::DiameterIdentityAvp;
     use crate::avp::utf8string::UTF8StringAvp;
     use crate::avp::AvpValue;
 
@@ -439,20 +439,36 @@ mod tests {
         message.add_avp(Avp::new(
             296,
             None,
-            AvpValue::Integer32(Integer32Avp::new(123456)),
+            AvpValue::DiameterIdentity(DiameterIdentityAvp::new("example.com")),
             true,
             false,
         ));
         message.add_avp(Avp::new(
-            264,
+            263,
             Some(10248),
             AvpValue::UTF8String(UTF8StringAvp::new("ses;12345888")),
             true,
             false,
         ));
 
-        assert_eq!(message.get_length(), 56);
+        assert_eq!(message.get_length(), 64);
 
+        println!("diameter message: {}", message);
+    }
+
+    #[test]
+    fn test_decode_ccr() {
+        let data = [
+            0x01, 0x00, 0x00, 0x54, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x08, 0x40, 0x00, 0x00, 0x0E,
+            0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x00, 0x00, 0x00, 0x00, 0x01, 0x28, 0x40, 0x00,
+            0x00, 0x13, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x52, 0x65, 0x61, 0x6C, 0x6D, 0x00,
+            0x00, 0x00, 0x01, 0x0C, 0x40, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x07, 0xD1, 0x00, 0x00,
+            0x01, 0x07, 0x40, 0x00, 0x00, 0x0F, 0x73, 0x65, 0x73, 0x3B, 0x31, 0x32, 0x33, 0x00,
+        ];
+
+        let mut cursor = Cursor::new(&data);
+        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
         println!("diameter message: {}", message);
     }
 }

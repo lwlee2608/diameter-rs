@@ -49,7 +49,7 @@ use std::io::Write;
 use self::enumerated::EnumeratedAvp;
 use self::float32::Float32Avp;
 use self::float64::Float64Avp;
-use self::identity::DiameterIdentity;
+use self::identity::DiameterIdentityAvp;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
@@ -113,7 +113,7 @@ pub enum AvpValue {
     // Address(address::AddressAvp),
     AddressIPv4(IPv4Avp),
     AddressIPv6(IPv6Avp),
-    DiameterIdentity(DiameterIdentity),
+    DiameterIdentity(DiameterIdentityAvp),
     DiameterURI(DiameterURI),
     Enumerated(EnumeratedAvp),
     Float32(Float32Avp),
@@ -316,6 +316,10 @@ impl Avp {
             .get_avp_type(header.code)
             .unwrap_or(&AvpType::Unknown);
 
+        // if avp_type == &AvpType::Unknown {
+        // return Err(Error::UnknownAvpCode(header.code));
+        // }
+
         let value = match avp_type {
             AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4Avp::decode_from(reader)?),
             AvpType::AddressIPv6 => AvpValue::AddressIPv6(IPv6Avp::decode_from(reader)?),
@@ -332,14 +336,14 @@ impl Avp {
             AvpType::OctetString => {
                 AvpValue::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?)
             }
-            AvpType::DiameterIdentity => AvpValue::DiameterIdentity(DiameterIdentity::decode_from(
-                reader,
-                value_length as usize,
-            )?),
+            AvpType::DiameterIdentity => AvpValue::DiameterIdentity(
+                DiameterIdentityAvp::decode_from(reader, value_length as usize)?,
+            ),
             AvpType::DiameterURI => {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
             AvpType::Time => AvpValue::Time(TimeAvp::decode_from(reader)?),
+            AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
             _ => todo!(),
         };
 
