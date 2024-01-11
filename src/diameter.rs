@@ -138,7 +138,7 @@ impl DiameterMessage {
         // sanity check, make sure everything is read
         if offset != total_length {
             return Err(Error::DecodeError(
-                "Invalid diameter message, length mismatch".into(),
+                "invalid diameter message, length mismatch".into(),
             ));
         }
 
@@ -164,7 +164,7 @@ impl DiameterHeader {
 
         if b.len() < HEADER_LENGTH as usize {
             return Err(Error::DecodeError(
-                "Invalid diameter header, too short".into(),
+                "invalid diameter header, too short".into(),
             ));
         }
 
@@ -178,10 +178,10 @@ impl DiameterHeader {
         let end_to_end_id = u32::from_be_bytes([b[16], b[17], b[18], b[19]]);
 
         let code = CommandCode::from_u32(code)
-            .ok_or_else(|| Error::DecodeError(format!("Unknown Command Code: {}", code).into()))?;
+            .ok_or_else(|| Error::DecodeError(format!("unknown command code: {}", code).into()))?;
 
         let application_id = ApplicationId::from_u32(application_id).ok_or_else(|| {
-            Error::DecodeError(format!("Unknown Application ID: {}", application_id).into())
+            Error::DecodeError(format!("unknown application id: {}", application_id).into())
         })?;
 
         Ok(DiameterHeader {
@@ -342,7 +342,9 @@ fn get_bool_unicode(v: bool) -> &'static str {
 #[cfg(test)]
 mod tests {
     use crate::avp;
+    use crate::avp::enumerated::EnumeratedAvp;
     use crate::avp::identity::IdentityAvp;
+    use crate::avp::unsigned32::Unsigned32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
     use crate::avp::AvpValue;
 
@@ -437,10 +439,13 @@ mod tests {
             1123158610,
             3102381851,
         );
-        message.add_avp(avp!(296, None, IdentityAvp::new("example.com"), true));
-        message.add_avp(avp!(263, Some(10248), UTF8StringAvp::new("ses;12345888")));
 
-        assert_eq!(message.get_length(), 64);
+        message.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
+        message.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
+        message.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
+        message.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
+        message.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
+        message.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
 
         println!("diameter message: {}", message);
     }

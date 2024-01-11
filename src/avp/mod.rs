@@ -26,6 +26,7 @@ pub mod address;
 pub mod enumerated;
 pub mod float32;
 pub mod float64;
+pub mod group;
 pub mod identity;
 pub mod integer32;
 pub mod integer64;
