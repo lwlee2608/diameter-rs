@@ -77,7 +77,6 @@ mod tests {
             avp!(416, None, EnumeratedAvp::new(1)),
             avp!(415, None, Unsigned32Avp::new(1000)),
         ]);
-        println!("{}", avp);
         assert_eq!(avp.avps().len(), 2);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();

@@ -367,7 +367,7 @@ impl Avp {
                 mandatory: mflag,
                 private: pflag,
             },
-            length: header_length + value.length() + padding as u32,
+            length: header_length + value.length(),
             vendor_id,
         };
         return Avp {

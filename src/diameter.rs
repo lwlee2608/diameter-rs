@@ -113,7 +113,7 @@ impl DiameterMessage {
     }
 
     pub fn add_avp(&mut self, avp: Avp) {
-        self.header.length += avp.get_length();
+        self.header.length += avp.get_length() + avp.get_padding() as u32;
         self.avps.push(avp);
     }
 
@@ -459,7 +459,15 @@ mod tests {
             true
         ));
 
-        println!("diameter message: {}", message);
+        // encode
+        let mut encoded = Vec::new();
+        message.encode_to(&mut encoded).unwrap();
+
+        // decode
+        let mut cursor = Cursor::new(&encoded);
+        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+
+        println!("decoded message:\n{}", message);
     }
 
     #[test]
