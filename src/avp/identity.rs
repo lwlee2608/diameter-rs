@@ -5,20 +5,20 @@ use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct DiameterIdentityAvp(UTF8StringAvp);
+pub struct IdentityAvp(UTF8StringAvp);
 
-impl DiameterIdentityAvp {
-    pub fn new(value: &str) -> DiameterIdentityAvp {
-        DiameterIdentityAvp(UTF8StringAvp::new(value))
+impl IdentityAvp {
+    pub fn new(value: &str) -> IdentityAvp {
+        IdentityAvp(UTF8StringAvp::new(value))
     }
 
     pub fn value(&self) -> &str {
         self.0.value()
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterIdentityAvp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<IdentityAvp, Error> {
         let avp = UTF8StringAvp::decode_from(reader, len)?;
-        Ok(DiameterIdentityAvp(avp))
+        Ok(IdentityAvp(avp))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
@@ -31,7 +31,7 @@ impl DiameterIdentityAvp {
     }
 }
 
-impl fmt::Display for DiameterIdentityAvp {
+impl fmt::Display for IdentityAvp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.value())
     }
@@ -46,7 +46,7 @@ mod tests {
     #[test]
     fn test_encode_decode_ascii() {
         let bytes = "example.com";
-        let avp = DiameterIdentityAvp::new(bytes);
+        let avp = IdentityAvp::new(bytes);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);

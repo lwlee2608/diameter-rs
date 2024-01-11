@@ -1,12 +1,12 @@
 #![feature(test)]
 
 extern crate test;
+use diameter::avp;
 use diameter::avp::enumerated::EnumeratedAvp;
-use diameter::avp::identity::DiameterIdentityAvp;
+use diameter::avp::identity::IdentityAvp;
 use diameter::avp::unsigned32::Unsigned32Avp;
 use diameter::avp::utf8string::UTF8StringAvp;
 use diameter::avp::Avp;
-use diameter::avp::AvpValue;
 use diameter::diameter::ApplicationId;
 use diameter::diameter::CommandCode;
 use diameter::diameter::DiameterHeader;
@@ -120,48 +120,13 @@ fn cca_message() -> DiameterMessage {
         1123158610,
         3102381851,
     );
-    message.add_avp(Avp::new(
-        264,
-        None,
-        AvpValue::DiameterIdentity(DiameterIdentityAvp::new("host.example.com")),
-        true,
-        false,
-    ));
-    message.add_avp(Avp::new(
-        296,
-        None,
-        AvpValue::DiameterIdentity(DiameterIdentityAvp::new("realm.example.com")),
-        true,
-        false,
-    ));
-    message.add_avp(Avp::new(
-        263,
-        None,
-        AvpValue::UTF8String(UTF8StringAvp::new("ses;12345888")),
-        true,
-        false,
-    ));
-    message.add_avp(Avp::new(
-        268,
-        None,
-        AvpValue::Unsigned32(Unsigned32Avp::new(2001)),
-        true,
-        false,
-    ));
-    message.add_avp(Avp::new(
-        416,
-        None,
-        AvpValue::Enumerated(EnumeratedAvp::new(1)),
-        true,
-        false,
-    ));
-    message.add_avp(Avp::new(
-        415,
-        None,
-        AvpValue::Unsigned32(Unsigned32Avp::new(1000)),
-        true,
-        false,
-    ));
+
+    message.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
+    message.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
+    message.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
+    message.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
+    message.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
+    message.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
     message
 }
 

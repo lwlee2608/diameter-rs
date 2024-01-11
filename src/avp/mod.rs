@@ -49,7 +49,7 @@ use std::io::Write;
 use self::enumerated::EnumeratedAvp;
 use self::float32::Float32Avp;
 use self::float64::Float64Avp;
-use self::identity::DiameterIdentityAvp;
+use self::identity::IdentityAvp;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
 use self::ipv4::IPv4Avp;
@@ -93,7 +93,7 @@ pub enum AvpType {
     Address,
     AddressIPv4,
     AddressIPv6,
-    DiameterIdentity,
+    Identity,
     DiameterURI,
     Enumerated,
     Float32,
@@ -113,7 +113,7 @@ pub enum AvpValue {
     // Address(address::AddressAvp),
     AddressIPv4(IPv4Avp),
     AddressIPv6(IPv6Avp),
-    DiameterIdentity(DiameterIdentityAvp),
+    Identity(IdentityAvp),
     DiameterURI(DiameterURI),
     Enumerated(EnumeratedAvp),
     Float32(Float32Avp),
@@ -142,7 +142,7 @@ impl fmt::Display for AvpValue {
             AvpValue::Unsigned64(avp) => avp.fmt(f),
             AvpValue::UTF8String(avp) => avp.fmt(f),
             AvpValue::OctetString(avp) => avp.fmt(f),
-            AvpValue::DiameterIdentity(avp) => avp.fmt(f),
+            AvpValue::Identity(avp) => avp.fmt(f),
             AvpValue::DiameterURI(avp) => avp.fmt(f),
             AvpValue::Time(avp) => avp.fmt(f),
         }
@@ -163,7 +163,7 @@ impl AvpValue {
             AvpValue::Unsigned64(avp) => avp.length(),
             AvpValue::UTF8String(avp) => avp.length(),
             AvpValue::OctetString(avp) => avp.length(),
-            AvpValue::DiameterIdentity(avp) => avp.length(),
+            AvpValue::Identity(avp) => avp.length(),
             AvpValue::DiameterURI(avp) => avp.length(),
             AvpValue::Time(avp) => avp.length(),
         }
@@ -182,10 +182,94 @@ impl AvpValue {
             AvpValue::Unsigned64(_) => "Unsigned64",
             AvpValue::UTF8String(_) => "UTF8String",
             AvpValue::OctetString(_) => "OctetString",
-            AvpValue::DiameterIdentity(_) => "DiameterIdentity",
+            AvpValue::Identity(_) => "Identity",
             AvpValue::DiameterURI(_) => "DiameterURI",
             AvpValue::Time(_) => "Time",
         }
+    }
+}
+
+impl From<IdentityAvp> for AvpValue {
+    fn from(identity: IdentityAvp) -> Self {
+        AvpValue::Identity(identity)
+    }
+}
+
+impl From<DiameterURI> for AvpValue {
+    fn from(uri: DiameterURI) -> Self {
+        AvpValue::DiameterURI(uri)
+    }
+}
+
+impl From<EnumeratedAvp> for AvpValue {
+    fn from(enumerated: EnumeratedAvp) -> Self {
+        AvpValue::Enumerated(enumerated)
+    }
+}
+
+impl From<Float32Avp> for AvpValue {
+    fn from(float32: Float32Avp) -> Self {
+        AvpValue::Float32(float32)
+    }
+}
+
+impl From<Float64Avp> for AvpValue {
+    fn from(float64: Float64Avp) -> Self {
+        AvpValue::Float64(float64)
+    }
+}
+
+impl From<Integer32Avp> for AvpValue {
+    fn from(integer32: Integer32Avp) -> Self {
+        AvpValue::Integer32(integer32)
+    }
+}
+
+impl From<Integer64Avp> for AvpValue {
+    fn from(integer64: Integer64Avp) -> Self {
+        AvpValue::Integer64(integer64)
+    }
+}
+
+impl From<IPv4Avp> for AvpValue {
+    fn from(ipv4: IPv4Avp) -> Self {
+        AvpValue::AddressIPv4(ipv4)
+    }
+}
+
+impl From<IPv6Avp> for AvpValue {
+    fn from(ipv6: IPv6Avp) -> Self {
+        AvpValue::AddressIPv6(ipv6)
+    }
+}
+
+impl From<OctetStringAvp> for AvpValue {
+    fn from(octetstring: OctetStringAvp) -> Self {
+        AvpValue::OctetString(octetstring)
+    }
+}
+
+impl From<TimeAvp> for AvpValue {
+    fn from(time: TimeAvp) -> Self {
+        AvpValue::Time(time)
+    }
+}
+
+impl From<Unsigned32Avp> for AvpValue {
+    fn from(unsigned32: Unsigned32Avp) -> Self {
+        AvpValue::Unsigned32(unsigned32)
+    }
+}
+
+impl From<Unsigned64Avp> for AvpValue {
+    fn from(unsigned64: Unsigned64Avp) -> Self {
+        AvpValue::Unsigned64(unsigned64)
+    }
+}
+
+impl From<UTF8StringAvp> for AvpValue {
+    fn from(utf8string: UTF8StringAvp) -> Self {
+        AvpValue::UTF8String(utf8string)
     }
 }
 
@@ -336,9 +420,9 @@ impl Avp {
             AvpType::OctetString => {
                 AvpValue::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?)
             }
-            AvpType::DiameterIdentity => AvpValue::DiameterIdentity(
-                DiameterIdentityAvp::decode_from(reader, value_length as usize)?,
-            ),
+            AvpType::Identity => {
+                AvpValue::Identity(IdentityAvp::decode_from(reader, value_length as usize)?)
+            }
             AvpType::DiameterURI => {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
@@ -375,7 +459,7 @@ impl Avp {
             AvpValue::Unsigned64(avp) => avp.encode_to(writer),
             AvpValue::UTF8String(avp) => avp.encode_to(writer),
             AvpValue::OctetString(avp) => avp.encode_to(writer),
-            AvpValue::DiameterIdentity(avp) => avp.encode_to(writer),
+            AvpValue::Identity(avp) => avp.encode_to(writer),
             AvpValue::DiameterURI(avp) => avp.encode_to(writer),
             AvpValue::Time(avp) => avp.encode_to(writer),
             // _ => todo!(),
@@ -406,6 +490,19 @@ impl Avp {
             _ => None,
         }
     }
+}
+
+#[macro_export]
+macro_rules! avp {
+    ($code:expr, $vendor_id:expr, $value:expr) => {
+        Avp::new($code, $vendor_id, $value.into(), false, false)
+    };
+    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr) => {
+        Avp::new($code, $vendor_id, $value.into(), $mflag, false)
+    };
+    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr, $pflag:expr) => {
+        Avp::new($code, $vendor_id, $value.into(), $mflag, $pflag)
+    };
 }
 
 #[cfg(test)]

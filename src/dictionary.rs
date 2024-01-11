@@ -24,12 +24,12 @@ lazy_static! {
         definition.add_avp(AvpDefinition {
             code: 264,
             name: String::from("Origin-Host"),
-            avp_type: AvpType::DiameterIdentity,
+            avp_type: AvpType::Identity,
         });
         definition.add_avp(AvpDefinition {
             code: 296,
             name: String::from("Origin-Realm"),
-            avp_type: AvpType::DiameterIdentity,
+            avp_type: AvpType::Identity,
         });
         definition.add_avp(AvpDefinition {
             code: 268,

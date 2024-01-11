@@ -341,7 +341,8 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use crate::avp::identity::DiameterIdentityAvp;
+    use crate::avp;
+    use crate::avp::identity::IdentityAvp;
     use crate::avp::utf8string::UTF8StringAvp;
     use crate::avp::AvpValue;
 
@@ -436,20 +437,8 @@ mod tests {
             1123158610,
             3102381851,
         );
-        message.add_avp(Avp::new(
-            296,
-            None,
-            AvpValue::DiameterIdentity(DiameterIdentityAvp::new("example.com")),
-            true,
-            false,
-        ));
-        message.add_avp(Avp::new(
-            263,
-            Some(10248),
-            AvpValue::UTF8String(UTF8StringAvp::new("ses;12345888")),
-            true,
-            false,
-        ));
+        message.add_avp(avp!(296, None, IdentityAvp::new("example.com"), true));
+        message.add_avp(avp!(263, Some(10248), UTF8StringAvp::new("ses;12345888")));
 
         assert_eq!(message.get_length(), 64);
 
