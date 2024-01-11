@@ -52,6 +52,17 @@ impl GroupAvp {
     }
 }
 
+// TODO implement indent
+impl std::fmt::Display for GroupAvp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "\n")?;
+        for avp in &self.0 {
+            write!(f, "{}\n", avp)?;
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,6 +77,7 @@ mod tests {
             avp!(416, None, EnumeratedAvp::new(1)),
             avp!(415, None, Unsigned32Avp::new(1000)),
         ]);
+        println!("{}", avp);
         assert_eq!(avp.avps().len(), 2);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();

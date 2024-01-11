@@ -50,6 +50,7 @@ use std::io::Write;
 use self::enumerated::EnumeratedAvp;
 use self::float32::Float32Avp;
 use self::float64::Float64Avp;
+use self::group::GroupAvp;
 use self::identity::IdentityAvp;
 use self::integer32::Integer32Avp;
 use self::integer64::Integer64Avp;
@@ -119,7 +120,7 @@ pub enum AvpValue {
     Enumerated(EnumeratedAvp),
     Float32(Float32Avp),
     Float64(Float64Avp),
-    // Grouped,
+    Grouped(GroupAvp),
     Integer32(Integer32Avp),
     Integer64(Integer64Avp),
     OctetString(OctetStringAvp),
@@ -146,6 +147,7 @@ impl fmt::Display for AvpValue {
             AvpValue::Identity(avp) => avp.fmt(f),
             AvpValue::DiameterURI(avp) => avp.fmt(f),
             AvpValue::Time(avp) => avp.fmt(f),
+            AvpValue::Grouped(avp) => avp.fmt(f),
         }
     }
 }
@@ -167,6 +169,7 @@ impl AvpValue {
             AvpValue::Identity(avp) => avp.length(),
             AvpValue::DiameterURI(avp) => avp.length(),
             AvpValue::Time(avp) => avp.length(),
+            AvpValue::Grouped(avp) => avp.length(),
         }
     }
 
@@ -186,6 +189,7 @@ impl AvpValue {
             AvpValue::Identity(_) => "Identity",
             AvpValue::DiameterURI(_) => "DiameterURI",
             AvpValue::Time(_) => "Time",
+            AvpValue::Grouped(_) => "Grouped",
         }
     }
 }
@@ -271,6 +275,12 @@ impl From<Unsigned64Avp> for AvpValue {
 impl From<UTF8StringAvp> for AvpValue {
     fn from(utf8string: UTF8StringAvp) -> Self {
         AvpValue::UTF8String(utf8string)
+    }
+}
+
+impl From<GroupAvp> for AvpValue {
+    fn from(group: GroupAvp) -> Self {
+        AvpValue::Grouped(group)
     }
 }
 
@@ -428,6 +438,9 @@ impl Avp {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
             AvpType::Time => AvpValue::Time(TimeAvp::decode_from(reader)?),
+            AvpType::Grouped => {
+                AvpValue::Grouped(GroupAvp::decode_from(reader, value_length as usize)?)
+            }
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
             _ => todo!(),
         };
@@ -463,6 +476,7 @@ impl Avp {
             AvpValue::Identity(avp) => avp.encode_to(writer),
             AvpValue::DiameterURI(avp) => avp.encode_to(writer),
             AvpValue::Time(avp) => avp.encode_to(writer),
+            AvpValue::Grouped(avp) => avp.encode_to(writer),
             // _ => todo!(),
         };
 

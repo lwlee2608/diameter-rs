@@ -343,6 +343,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 mod tests {
     use crate::avp;
     use crate::avp::enumerated::EnumeratedAvp;
+    use crate::avp::group::GroupAvp;
     use crate::avp::identity::IdentityAvp;
     use crate::avp::unsigned32::Unsigned32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
@@ -446,6 +447,17 @@ mod tests {
         message.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
         message.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
         message.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+        message.add_avp(avp!(
+            873,
+            Some(10415),
+            GroupAvp::new(vec![avp!(
+                874,
+                Some(10415),
+                GroupAvp::new(vec![avp!(30, None, UTF8StringAvp::new("10999"), true)]),
+                true
+            )]),
+            true
+        ));
 
         println!("diameter message: {}", message);
     }

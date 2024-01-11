@@ -61,6 +61,16 @@ lazy_static! {
             name: String::from("Timezone-Offset"),
             avp_type: AvpType::Integer32,
         });
+        definition.add_avp(AvpDefinition {
+            code: 873,
+            name: String::from("Service-Information"),
+            avp_type: AvpType::Grouped,
+        });
+        definition.add_avp(AvpDefinition {
+            code: 874,
+            name: String::from("PS-Information"),
+            avp_type: AvpType::Grouped,
+        });
         return definition;
     };
 }
