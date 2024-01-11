@@ -299,25 +299,20 @@ impl AvpHeader {
 
         let length = u32::from_be_bytes([0, b[5], b[6], b[7]]);
 
-        if flags.vendor {
+        let vendor_id = if flags.vendor {
             let mut b = [0; 4];
             reader.read_exact(&mut b)?;
-            let vendor_id = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
-
-            Ok(AvpHeader {
-                code,
-                flags,
-                length,
-                vendor_id: Some(vendor_id),
-            })
+            Some(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
         } else {
-            Ok(AvpHeader {
-                code,
-                flags,
-                length,
-                vendor_id: None,
-            })
-        }
+            None
+        };
+
+        Ok(AvpHeader {
+            code,
+            flags,
+            length,
+            vendor_id,
+        })
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
@@ -509,13 +504,13 @@ impl Avp {
 
 #[macro_export]
 macro_rules! avp {
-    ($code:expr, $vendor_id:expr, $value:expr) => {
+    ($code:expr, $vendor_id:expr, $value:expr $(,)?) => {
         Avp::new($code, $vendor_id, $value.into(), false, false)
     };
-    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr) => {
+    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr $(,)?) => {
         Avp::new($code, $vendor_id, $value.into(), $mflag, false)
     };
-    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr, $pflag:expr) => {
+    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr, $pflag:expr $(,)?) => {
         Avp::new($code, $vendor_id, $value.into(), $mflag, $pflag)
     };
 }

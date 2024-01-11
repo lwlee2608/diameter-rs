@@ -3,6 +3,7 @@
 extern crate test;
 use diameter::avp;
 use diameter::avp::enumerated::EnumeratedAvp;
+use diameter::avp::group::GroupAvp;
 use diameter::avp::identity::IdentityAvp;
 use diameter::avp::unsigned32::Unsigned32Avp;
 use diameter::avp::utf8string::UTF8StringAvp;
@@ -127,6 +128,17 @@ fn cca_message() -> DiameterMessage {
     message.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
     message.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
     message.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+    message.add_avp(avp!(
+        873,
+        Some(10415),
+        GroupAvp::new(vec![avp!(
+            874,
+            Some(10415),
+            GroupAvp::new(vec![avp!(30, None, UTF8StringAvp::new("10999"), true)]),
+            true,
+        )]),
+        true,
+    ));
     message
 }
 

@@ -454,9 +454,9 @@ mod tests {
                 874,
                 Some(10415),
                 GroupAvp::new(vec![avp!(30, None, UTF8StringAvp::new("10999"), true)]),
-                true
+                true,
             )]),
-            true
+            true,
         ));
 
         // encode
