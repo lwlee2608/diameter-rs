@@ -1,8 +1,9 @@
-use crate::avp::OctetStringAvp;
 use crate::error::Error;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
+
+use crate::avp::OctetStringAvp;
 
 #[derive(Debug)]
 pub struct DiameterURI(OctetStringAvp);

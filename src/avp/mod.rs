@@ -47,6 +47,7 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
+use self::address::AddressAvp;
 use self::enumerated::EnumeratedAvp;
 use self::float32::Float32Avp;
 use self::float64::Float64Avp;
@@ -112,7 +113,7 @@ pub enum AvpType {
 
 #[derive(Debug)]
 pub enum AvpValue {
-    // Address(address::AddressAvp),
+    Address(AddressAvp),
     AddressIPv4(IPv4Avp),
     AddressIPv6(IPv6Avp),
     Identity(IdentityAvp),
@@ -133,6 +134,7 @@ pub enum AvpValue {
 impl fmt::Display for AvpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            AvpValue::Address(avp) => avp.fmt(f),
             AvpValue::AddressIPv4(avp) => avp.fmt(f),
             AvpValue::AddressIPv6(avp) => avp.fmt(f),
             AvpValue::Float32(avp) => avp.fmt(f),
@@ -155,6 +157,7 @@ impl fmt::Display for AvpValue {
 impl AvpValue {
     pub fn length(&self) -> u32 {
         match self {
+            AvpValue::Address(avp) => avp.length(),
             AvpValue::AddressIPv4(avp) => avp.length(),
             AvpValue::AddressIPv6(avp) => avp.length(),
             AvpValue::Float32(avp) => avp.length(),
@@ -175,6 +178,7 @@ impl AvpValue {
 
     pub fn get_type_name(&self) -> &'static str {
         match self {
+            AvpValue::Address(_) => "Address",
             AvpValue::AddressIPv4(_) => "AddressIPv4",
             AvpValue::AddressIPv6(_) => "AddressIPv6",
             AvpValue::Float32(_) => "Float32",
@@ -233,6 +237,12 @@ impl From<Integer32Avp> for AvpValue {
 impl From<Integer64Avp> for AvpValue {
     fn from(integer64: Integer64Avp) -> Self {
         AvpValue::Integer64(integer64)
+    }
+}
+
+impl From<AddressAvp> for AvpValue {
+    fn from(avp: AddressAvp) -> Self {
+        AvpValue::Address(avp)
     }
 }
 
@@ -411,6 +421,9 @@ impl Avp {
         // }
 
         let value = match avp_type {
+            AvpType::Address => {
+                AvpValue::Address(AddressAvp::decode_from(reader, value_length as usize)?)
+            }
             AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4Avp::decode_from(reader)?),
             AvpType::AddressIPv6 => AvpValue::AddressIPv6(IPv6Avp::decode_from(reader)?),
             AvpType::Float32 => AvpValue::Float32(Float32Avp::decode_from(reader)?),
@@ -437,7 +450,6 @@ impl Avp {
                 AvpValue::Grouped(GroupAvp::decode_from(reader, value_length as usize)?)
             }
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
-            _ => todo!(),
         };
 
         // Skip padding
@@ -457,6 +469,7 @@ impl Avp {
         self.header.encode_to(writer)?;
 
         let _ = match &self.value {
+            AvpValue::Address(avp) => avp.encode_to(writer),
             AvpValue::AddressIPv4(avp) => avp.encode_to(writer),
             AvpValue::AddressIPv6(avp) => avp.encode_to(writer),
             AvpValue::Float32(avp) => avp.encode_to(writer),
@@ -472,7 +485,6 @@ impl Avp {
             AvpValue::DiameterURI(avp) => avp.encode_to(writer),
             AvpValue::Time(avp) => avp.encode_to(writer),
             AvpValue::Grouped(avp) => avp.encode_to(writer),
-            // _ => todo!(),
         };
 
         // Padding
