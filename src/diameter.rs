@@ -59,7 +59,6 @@ pub struct DiameterHeader {
     end_to_end_id: u32,
 }
 
-#[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum CommandCode {
     Error = 0,
