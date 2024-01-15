@@ -1,12 +1,10 @@
 use crate::diameter::DiameterMessage;
 use std::io::Cursor;
 
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    net::TcpStream,
-};
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+use tokio::net::TcpStream;
 
-#[derive(Debug)]
 pub struct DiameterClient {
     stream: Option<TcpStream>,
 }
@@ -64,9 +62,7 @@ mod tests {
     use crate::avp::unsigned32::Unsigned32Avp;
     use crate::avp::utf8string::UTF8StringAvp;
     use crate::avp::Avp;
-    use crate::diameter::{
-        ApplicationId, CommandCode, DiameterMessage, PROXYABLE_FLAG, REQUEST_FLAG,
-    };
+    use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
 
     #[ignore]
     #[tokio::test]
@@ -74,7 +70,7 @@ mod tests {
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            REQUEST_FLAG | PROXYABLE_FLAG,
+            REQUEST_FLAG,
             1123158610,
             3102381851,
         );
