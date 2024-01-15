@@ -1,4 +1,6 @@
 use crate::diameter::DiameterMessage;
+use log::error;
+use log::info;
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -15,8 +17,6 @@ impl DiameterServer {
     }
 
     // TODO
-    // replace eprintln!
-    // remove unwrap()
     // replace Box<dyn Error>
     // Handle buf 1024 bytes overflow
     // Handle multiple requests in one buffer
@@ -32,13 +32,24 @@ impl DiameterServer {
             let (mut socket, _) = self.listener.accept().await?;
             let handler = handler;
             tokio::spawn(async move {
+                let peer_addr = match socket.peer_addr() {
+                    Ok(addr) => addr.to_string(),
+                    Err(_) => "Unknown".to_string(),
+                };
+
                 let mut buf = [0; 1024];
                 loop {
                     let n = match socket.read(&mut buf).await {
-                        Ok(n) if n == 0 => return,
+                        Ok(n) if n == 0 => {
+                            info!("Client {} disconnected", peer_addr);
+                            return;
+                        }
                         Ok(n) => n,
                         Err(e) => {
-                            eprintln!("failed to read from socket; err = {:?}", e);
+                            error!(
+                                "Failed to read from socket (client: {}); error: {:?}",
+                                peer_addr, e
+                            );
                             return;
                         }
                     };
@@ -49,7 +60,7 @@ impl DiameterServer {
                     let req = match DiameterMessage::decode_from(&mut cursor) {
                         Ok(req) => req,
                         Err(e) => {
-                            eprintln!("failed to decode request; err = {:?}", e);
+                            error!("failed to decode request; err = {:?}", e);
                             return;
                         }
                     };
@@ -58,7 +69,7 @@ impl DiameterServer {
                     let res = match handler(req) {
                         Ok(res) => res,
                         Err(e) => {
-                            eprintln!("request handler error: {:?}", e);
+                            error!("request handler error: {:?}", e);
                             return;
                         }
                     };
@@ -66,11 +77,13 @@ impl DiameterServer {
                     // Encode and send the response
                     let mut response = Vec::new();
                     if res.encode_to(&mut response).is_err() {
-                        eprintln!("failed to encode response");
+                        error!("failed to encode response");
                         return;
                     }
+
+                    // Send the response
                     if let Err(e) = socket.write_all(&response).await {
-                        eprintln!("failed to write to socket; err = {:?}", e);
+                        error!("failed to write to socket; err = {:?}", e);
                         return;
                     }
                 }
