@@ -1,4 +1,5 @@
 use crate::diameter::DiameterMessage;
+use crate::error::Error;
 use log::error;
 use log::info;
 use std::io::Cursor;
@@ -11,22 +12,19 @@ pub struct DiameterServer {
 }
 
 impl DiameterServer {
-    pub async fn new(addr: &str) -> Result<DiameterServer, Box<dyn std::error::Error>> {
+    pub async fn new(addr: &str) -> Result<DiameterServer, Error> {
         let listener = TcpListener::bind(addr).await?;
         Ok(DiameterServer { listener })
     }
 
     // TODO
-    // replace Box<dyn Error>
     // Handle buf 1024 bytes overflow
     // Handle multiple requests in one buffer
     // Handle partial request in buffer
-    pub async fn handle<F>(&mut self, handler: F) -> Result<(), Box<dyn std::error::Error>>
+    //
+    pub async fn handle<F>(&mut self, handler: F) -> Result<(), Error>
     where
-        F: Fn(DiameterMessage) -> Result<DiameterMessage, Box<dyn std::error::Error>>
-            + Copy
-            + Send
-            + 'static,
+        F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Copy + Send + 'static,
     {
         loop {
             let (mut socket, _) = self.listener.accept().await?;
@@ -108,25 +106,23 @@ mod tests {
     async fn test_server() {
         let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
         server
-            .handle(
-                |_req| -> Result<DiameterMessage, Box<dyn std::error::Error>> {
-                    // Return Dummy Value
-                    let mut res = DiameterMessage::new(
-                        CommandCode::CreditControl,
-                        ApplicationId::CreditControl,
-                        0,
-                        1123158610,
-                        3102381851,
-                    );
-                    res.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
-                    res.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
-                    res.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345889"), true));
-                    res.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
-                    res.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
-                    res.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
-                    Ok(res)
-                },
-            )
+            .handle(|_req| -> Result<DiameterMessage, Error> {
+                // Return Dummy Value
+                let mut res = DiameterMessage::new(
+                    CommandCode::CreditControl,
+                    ApplicationId::CreditControl,
+                    0,
+                    1123158610,
+                    3102381851,
+                );
+                res.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
+                res.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
+                res.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345889"), true));
+                res.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
+                res.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+                res.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
+                Ok(res)
+            })
             .await
             .unwrap();
     }

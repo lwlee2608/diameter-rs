@@ -1,6 +1,6 @@
 use crate::diameter::DiameterMessage;
+use crate::error::Error;
 use std::io::Cursor;
-
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -14,33 +14,24 @@ impl DiameterClient {
         DiameterClient { stream: None }
     }
 
-    pub async fn connect(&mut self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn connect(&mut self, addr: &str) -> Result<(), Error> {
         let stream = TcpStream::connect(addr).await?;
         self.stream = Some(stream);
         Ok(())
     }
 
-    pub async fn send(
-        &mut self,
-        req: DiameterMessage,
-    ) -> Result<DiameterMessage, Box<dyn std::error::Error>> {
+    pub async fn send(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
         if let Some(stream) = self.stream.as_mut() {
             // Encode Request
             let mut encoded = Vec::new();
             req.encode_to(&mut encoded)?;
 
             // Send Request
-            stream
-                .write_all(&encoded)
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+            stream.write_all(&encoded).await?;
 
             // Read Response
             let mut buffer = vec![0; 1024];
-            let n = stream
-                .read(&mut buffer)
-                .await
-                .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+            let n = stream.read(&mut buffer).await?;
 
             // Decode Response
             let response = &buffer[..n];
@@ -48,7 +39,7 @@ impl DiameterClient {
             let res = DiameterMessage::decode_from(&mut cursor)?;
             Ok(res)
         } else {
-            Err("Not connected".into())
+            Err(Error::ClientError("Not connected".into()))
         }
     }
 }
