@@ -124,6 +124,26 @@ impl DiameterMessage {
         self.header.length
     }
 
+    pub fn get_command_code(&self) -> CommandCode {
+        self.header.code
+    }
+
+    pub fn get_application_id(&self) -> ApplicationId {
+        self.header.application_id
+    }
+
+    pub fn get_flags(&self) -> u8 {
+        self.header.flags
+    }
+
+    pub fn get_hop_by_hop_id(&self) -> u32 {
+        self.header.hop_by_hop_id
+    }
+
+    pub fn get_end_to_end_id(&self) -> u32 {
+        self.header.end_to_end_id
+    }
+
     // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
     pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
         let header = DiameterHeader::decode_from(reader)?;

@@ -21,11 +21,11 @@ mod tests {
                     println!("Request : {}", req);
 
                     let mut res = DiameterMessage::new(
-                        CommandCode::CreditControl,
-                        ApplicationId::CreditControl,
-                        0,
-                        1123158610,
-                        3102381851,
+                        req.get_command_code(),
+                        req.get_application_id(),
+                        req.get_flags() ^ REQUEST_FLAG,
+                        req.get_hop_by_hop_id(),
+                        req.get_end_to_end_id(),
                     );
                     res.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
                     res.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
@@ -47,7 +47,7 @@ mod tests {
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
             REQUEST_FLAG,
-            1123158610,
+            1123158611,
             3102381851,
         );
         ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
