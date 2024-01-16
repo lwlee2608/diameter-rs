@@ -107,6 +107,10 @@ impl DiameterMessage {
         DiameterMessage { header, avps }
     }
 
+    pub fn get_avp(&self, code: u32) -> Option<&Avp> {
+        self.avps.iter().find(|avp| avp.get_code() == code)
+    }
+
     pub fn get_avps(&self) -> &Vec<Avp> {
         &self.avps
     }

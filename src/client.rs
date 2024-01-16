@@ -29,14 +29,26 @@ impl DiameterClient {
             // Send Request
             stream.write_all(&encoded).await?;
 
+            // Read first 4 bytes to determine the length
+            let mut b = [0; 4];
+            stream.read_exact(&mut b).await?;
+            let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+            // Limit to 1MB
+            if length as usize > 1024 * 1024 {
+                return Err(Error::ClientError("Message too large ".into()));
+            }
+
             // Read Response
-            let mut buffer = vec![0; 1024];
-            let n = stream.read(&mut buffer).await?;
+            let mut buffer = Vec::with_capacity(length as usize);
+            buffer.extend_from_slice(&b);
+            buffer.resize(length as usize, 0);
+            stream.read_exact(&mut buffer[4..]).await?;
 
             // Decode Response
-            let response = &buffer[..n];
-            let mut cursor = Cursor::new(response);
+            let mut cursor = Cursor::new(buffer);
             let res = DiameterMessage::decode_from(&mut cursor)?;
+
             Ok(res)
         } else {
             Err(Error::ClientError("Not connected".into()))

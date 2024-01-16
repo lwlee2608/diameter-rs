@@ -499,6 +499,48 @@ impl Avp {
         ((4 - (length & 0b11)) % 4) as u8
     }
 
+    pub fn get_address(&self) -> Option<&AddressAvp> {
+        match &self.value {
+            AvpValue::Address(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_address_ipv4(&self) -> Option<&IPv4Avp> {
+        match &self.value {
+            AvpValue::AddressIPv4(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_address_ipv6(&self) -> Option<&IPv6Avp> {
+        match &self.value {
+            AvpValue::AddressIPv6(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_identity(&self) -> Option<&IdentityAvp> {
+        match &self.value {
+            AvpValue::Identity(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_diameter_uri(&self) -> Option<&DiameterURI> {
+        match &self.value {
+            AvpValue::DiameterURI(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_enumerated(&self) -> Option<&EnumeratedAvp> {
+        match &self.value {
+            AvpValue::Enumerated(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
     pub fn get_integer32(&self) -> Option<i32> {
         match &self.value {
             AvpValue::Integer32(avp) => Some(avp.value()),
@@ -506,9 +548,65 @@ impl Avp {
         }
     }
 
-    pub fn get_utf8string(&self) -> Option<&str> {
+    pub fn get_integer64(&self) -> Option<i64> {
         match &self.value {
-            AvpValue::UTF8String(avp) => Some(avp.value()),
+            AvpValue::Integer64(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_unsigned32(&self) -> Option<u32> {
+        match &self.value {
+            AvpValue::Unsigned32(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_unsigned64(&self) -> Option<u64> {
+        match &self.value {
+            AvpValue::Unsigned64(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_utf8string(&self) -> Option<&UTF8StringAvp> {
+        match &self.value {
+            AvpValue::UTF8String(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_octetstring(&self) -> Option<&OctetStringAvp> {
+        match &self.value {
+            AvpValue::OctetString(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_time(&self) -> Option<&TimeAvp> {
+        match &self.value {
+            AvpValue::Time(avp) => Some(avp),
+            _ => None,
+        }
+    }
+
+    pub fn get_float32(&self) -> Option<f32> {
+        match &self.value {
+            AvpValue::Float32(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_float64(&self) -> Option<f64> {
+        match &self.value {
+            AvpValue::Float64(avp) => Some(avp.value()),
+            _ => None,
+        }
+    }
+
+    pub fn get_grouped(&self) -> Option<&GroupAvp> {
+        match &self.value {
+            AvpValue::Grouped(avp) => Some(avp),
             _ => None,
         }
     }
