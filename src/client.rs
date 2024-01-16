@@ -39,7 +39,7 @@ impl DiameterClient {
                 return Err(Error::ClientError("Message too large ".into()));
             }
 
-            // Read Response
+            // Read the rest of the message
             let mut buffer = Vec::with_capacity(length as usize);
             buffer.extend_from_slice(&b);
             buffer.resize(length as usize, 0);

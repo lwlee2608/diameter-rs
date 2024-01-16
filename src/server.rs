@@ -1,7 +1,6 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use log::error;
-use log::info;
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -17,43 +16,52 @@ impl DiameterServer {
         Ok(DiameterServer { listener })
     }
 
-    // TODO
-    // Handle buf 1024 bytes overflow
-    // Handle multiple requests in one buffer
-    // Handle partial request in buffer
-    //
     pub async fn handle<F>(&mut self, handler: F) -> Result<(), Error>
     where
-        F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Copy + Send + 'static,
+        F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Clone + Send + 'static,
     {
         loop {
             let (mut socket, _) = self.listener.accept().await?;
-            let handler = handler;
+            let handler = handler.clone();
             tokio::spawn(async move {
                 let peer_addr = match socket.peer_addr() {
                     Ok(addr) => addr.to_string(),
                     Err(_) => "Unknown".to_string(),
                 };
 
-                let mut buf = [0; 1024];
                 loop {
-                    let n = match socket.read(&mut buf).await {
-                        Ok(n) if n == 0 => {
-                            info!("Client {} disconnected", peer_addr);
-                            return;
-                        }
-                        Ok(n) => n,
-                        Err(e) => {
-                            error!(
-                                "Failed to read from socket (client: {}); error: {:?}",
-                                peer_addr, e
-                            );
-                            return;
-                        }
-                    };
+                    // Read first 4 bytes to determine the length
+                    let mut b = [0; 4];
+                    if let Err(e) = socket.read_exact(&mut b).await {
+                        error!(
+                            "Failed to read header from socket (client: {}); error: {:?}",
+                            peer_addr, e
+                        );
+                        return;
+                    }
+                    let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+                    // Limit to 1MB
+                    if length > 1024 * 1024 {
+                        error!("Message too large (client: {})", peer_addr);
+                        return;
+                    }
+
+                    // Read the rest of the message
+                    let mut buf = vec![0; length as usize - 4];
+                    if let Err(e) = socket.read_exact(&mut buf).await {
+                        error!(
+                            "Failed to read message from socket (client: {}); error: {:?}",
+                            peer_addr, e
+                        );
+                        return;
+                    }
+
+                    let mut request = Vec::with_capacity(length as usize);
+                    request.extend_from_slice(&b);
+                    request.append(&mut buf);
 
                     // Decode the request
-                    let request = &buf[..n];
                     let mut cursor = Cursor::new(request);
                     let req = match DiameterMessage::decode_from(&mut cursor) {
                         Ok(req) => req,
