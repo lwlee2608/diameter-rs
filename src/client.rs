@@ -1,55 +1,98 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
+use std::collections::HashMap;
 use std::io::Cursor;
+use std::sync::{Arc, Mutex};
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
+use tokio::sync::oneshot;
 
 pub struct DiameterClient {
-    stream: Option<TcpStream>,
+    writer: Option<OwnedWriteHalf>,
+    futures: Arc<Mutex<HashMap<u32, oneshot::Sender<DiameterMessage>>>>,
 }
 
 impl DiameterClient {
     pub fn new() -> DiameterClient {
-        DiameterClient { stream: None }
+        DiameterClient {
+            writer: None,
+            futures: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     pub async fn connect(&mut self, addr: &str) -> Result<(), Error> {
         let stream = TcpStream::connect(addr).await?;
-        self.stream = Some(stream);
+
+        let (mut reader, writer) = stream.into_split();
+        self.writer = Some(writer);
+
+        let futures = self.futures.clone();
+        let _read_task = tokio::spawn(async move {
+            loop {
+                // TODO handle unwrap
+                let res = Self::read(&mut reader).await.unwrap();
+                let hop_by_hop = res.get_hop_by_hop_id();
+
+                let sender_opt = {
+                    let mut futures = futures.lock().unwrap();
+                    futures.remove(&hop_by_hop)
+                };
+                if let Some(sender) = sender_opt {
+                    sender.send(res).unwrap();
+                }
+            }
+        });
+
         Ok(())
     }
 
+    async fn read(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
+        let mut b = [0; 4];
+        reader.read_exact(&mut b).await?;
+        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+        // Limit to 1MB
+        if length as usize > 1024 * 1024 {
+            return Err(Error::ClientError("Message too large ".into()));
+        }
+
+        // Read the rest of the message
+        let mut buffer = Vec::with_capacity(length as usize);
+        buffer.extend_from_slice(&b);
+        buffer.resize(length as usize, 0);
+        reader.read_exact(&mut buffer[4..]).await?;
+
+        // Decode Response
+        let mut cursor = Cursor::new(buffer);
+        let res = DiameterMessage::decode_from(&mut cursor)?;
+        Ok(res)
+    }
+
     pub async fn send(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
-        if let Some(stream) = self.stream.as_mut() {
+        if let Some(writer) = self.writer.as_mut() {
             // Encode Request
             let mut encoded = Vec::new();
             req.encode_to(&mut encoded)?;
 
             // Send Request
-            stream.write_all(&encoded).await?;
+            writer.write_all(&encoded).await?;
 
-            // Read first 4 bytes to determine the length
-            let mut b = [0; 4];
-            stream.read_exact(&mut b).await?;
-            let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+            // Insert a oneshot channel into futures
+            let (tx, rx) = oneshot::channel();
+            let hop_by_hop = req.get_hop_by_hop_id();
 
-            // Limit to 1MB
-            if length as usize > 1024 * 1024 {
-                return Err(Error::ClientError("Message too large ".into()));
+            {
+                let mut futures = self.futures.lock().unwrap();
+                futures.insert(hop_by_hop, tx);
             }
 
-            // Read the rest of the message
-            let mut buffer = Vec::with_capacity(length as usize);
-            buffer.extend_from_slice(&b);
-            buffer.resize(length as usize, 0);
-            stream.read_exact(&mut buffer[4..]).await?;
-
-            // Decode Response
-            let mut cursor = Cursor::new(buffer);
-            let res = DiameterMessage::decode_from(&mut cursor)?;
-
-            Ok(res)
+            // Wait for reader_task of a matching hop_by_hop to return
+            match rx.await {
+                Ok(response) => Ok(response),
+                Err(_) => Err(Error::ClientError("Failed to receive response".into())),
+            }
         } else {
             Err(Error::ClientError("Not connected".into()))
         }
