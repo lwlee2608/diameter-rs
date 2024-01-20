@@ -29,19 +29,24 @@ impl DiameterClient {
         let (mut reader, writer) = stream.into_split();
         self.writer = Some(writer);
 
-        let futures = self.futures.clone();
-        let _read_task = tokio::spawn(async move {
+        let futures = Arc::clone(&self.futures);
+        tokio::spawn(async move {
             loop {
-                // TODO handle unwrap
-                let res = Self::read(&mut reader).await.unwrap();
-                let hop_by_hop = res.get_hop_by_hop_id();
-
-                let sender_opt = {
-                    let mut futures = futures.lock().unwrap();
-                    futures.remove(&hop_by_hop)
-                };
-                if let Some(sender) = sender_opt {
-                    sender.send(res).unwrap();
+                match Self::read(&mut reader).await {
+                    Ok(res) => {
+                        let hop_by_hop = res.get_hop_by_hop_id();
+                        let sender_opt = {
+                            let mut futures = futures.lock().unwrap();
+                            futures.remove(&hop_by_hop)
+                        };
+                        if let Some(sender) = sender_opt {
+                            sender.send(res).unwrap();
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to read message from socket; error: {:?}", e);
+                        return;
+                    }
                 }
             }
         });
@@ -73,17 +78,15 @@ impl DiameterClient {
 
     pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
         if let Some(writer) = self.writer.as_mut() {
-            // Encode Request
+            // Encode DiameterMessage request into binary 'encoded'
             let mut encoded = Vec::new();
             req.encode_to(&mut encoded)?;
 
-            // Send Request
+            // Send the encoded request
             writer.write_all(&encoded).await?;
 
-            // Insert a oneshot channel into futures
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
-
             {
                 let mut futures = self.futures.lock().unwrap();
                 futures.insert(hop_by_hop, tx);
@@ -105,20 +108,14 @@ impl DiameterClient {
 #[derive(Debug)]
 pub struct DiameterRequest {
     pub request: DiameterMessage,
-    // pub response: Receiver<DiameterMessage>,
-    // pub response: Arc<Mutex<Receiver<DiameterMessage>>>,
     pub response: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
 }
 
 impl DiameterRequest {
-    // pub fn new(request: DiameterMessage, response: Receiver<DiameterMessage>) -> Self {
-    //     DiameterRequest { request, response }
-    // }
     pub fn new(request: DiameterMessage, response: Receiver<DiameterMessage>) -> Self {
         DiameterRequest {
             request,
             response: Arc::new(Mutex::new(Some(response))),
-            // response: Arc::new(Mutex::new(response)),
         }
     }
 
