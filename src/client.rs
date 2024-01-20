@@ -8,6 +8,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
+use tokio::sync::oneshot::Receiver;
 
 pub struct DiameterClient {
     writer: Option<OwnedWriteHalf>,
@@ -70,7 +71,7 @@ impl DiameterClient {
         Ok(res)
     }
 
-    pub async fn send(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
+    pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
         if let Some(writer) = self.writer.as_mut() {
             // Encode Request
             let mut encoded = Vec::new();
@@ -88,13 +89,54 @@ impl DiameterClient {
                 futures.insert(hop_by_hop, tx);
             }
 
-            // Wait for reader_task of a matching hop_by_hop to return
-            match rx.await {
-                Ok(response) => Ok(response),
-                Err(_) => Err(Error::ClientError("Failed to receive response".into())),
-            }
+            Ok(DiameterRequest::new(req, rx))
         } else {
             Err(Error::ClientError("Not connected".into()))
+        }
+    }
+
+    pub async fn send(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
+        let request = self.request(req).await?;
+        let response = request.get_response().await?;
+        Ok(response)
+    }
+}
+
+#[derive(Debug)]
+pub struct DiameterRequest {
+    pub request: DiameterMessage,
+    // pub response: Receiver<DiameterMessage>,
+    // pub response: Arc<Mutex<Receiver<DiameterMessage>>>,
+    pub response: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
+}
+
+impl DiameterRequest {
+    // pub fn new(request: DiameterMessage, response: Receiver<DiameterMessage>) -> Self {
+    //     DiameterRequest { request, response }
+    // }
+    pub fn new(request: DiameterMessage, response: Receiver<DiameterMessage>) -> Self {
+        DiameterRequest {
+            request,
+            response: Arc::new(Mutex::new(Some(response))),
+            // response: Arc::new(Mutex::new(response)),
+        }
+    }
+
+    pub fn get_request(&self) -> &DiameterMessage {
+        &self.request
+    }
+
+    pub async fn get_response(&self) -> Result<DiameterMessage, Error> {
+        let rx = self
+            .response
+            .lock()
+            .unwrap()
+            .take()
+            .ok_or_else(|| Error::ClientError("Receiver already taken".into()))?;
+
+        match rx.await {
+            Ok(response) => Ok(response),
+            Err(_) => Err(Error::ClientError("Failed to receive response".into())),
         }
     }
 }

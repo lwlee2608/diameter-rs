@@ -14,8 +14,9 @@ mod tests {
     #[tokio::test]
     async fn test_diameter_transport() {
         // Diameter Server
+        let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
+
         tokio::spawn(async move {
-            let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
             server
                 .handle(|req| -> Result<DiameterMessage, Error> {
                     println!("Request : {}", req);
