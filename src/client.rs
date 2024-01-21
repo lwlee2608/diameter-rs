@@ -9,17 +9,18 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
+use tokio::sync::oneshot::Sender;
 
 pub struct DiameterClient {
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
-    futures: Arc<Mutex<HashMap<u32, oneshot::Sender<DiameterMessage>>>>,
+    msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
 impl DiameterClient {
     pub fn new() -> DiameterClient {
         DiameterClient {
             writer: None,
-            futures: Arc::new(Mutex::new(HashMap::new())),
+            msg_caches: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -30,21 +31,14 @@ impl DiameterClient {
         let writer = Arc::new(Mutex::new(writer));
         self.writer = Some(writer);
 
-        let futures = Arc::clone(&self.futures);
+        let msg_caches = Arc::clone(&self.msg_caches);
         tokio::spawn(async move {
             loop {
                 match Self::read(&mut reader).await {
                     Ok(res) => {
-                        let hop_by_hop = res.get_hop_by_hop_id();
-                        let sender_opt = {
-                            // TODO handle lock failure
-                            let mut futures = futures.lock().unwrap();
-                            // TODO handle futures not found
-                            futures.remove(&hop_by_hop)
-                        };
-                        if let Some(sender) = sender_opt {
-                            // TODO handle send failure
-                            sender.send(res).unwrap();
+                        if let Err(e) = Self::process_response(msg_caches.clone(), res).await {
+                            log::error!("Failed to process response; error: {:?}", e);
+                            return;
                         }
                     }
                     Err(e) => {
@@ -58,6 +52,35 @@ impl DiameterClient {
         Ok(())
     }
 
+    async fn process_response(
+        msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+        res: DiameterMessage,
+    ) -> Result<(), Error> {
+        let hop_by_hop = res.get_hop_by_hop_id();
+
+        let sender_opt = {
+            let mut msg_caches = msg_caches
+                .lock()
+                .map_err(|_| Error::ClientError("Failed to retrieve matching request".into()))?;
+
+            msg_caches.remove(&hop_by_hop)
+        };
+        match sender_opt {
+            Some(sender) => {
+                sender
+                    .send(res)
+                    .map_err(|_| Error::ClientError("Failed to send response".into()))?;
+            }
+            None => {
+                Err(Error::ClientError(format!(
+                    "No request found for hop_by_hop_id {}",
+                    hop_by_hop
+                )))?;
+            }
+        };
+        Ok(())
+    }
+
     async fn read(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
         let mut b = [0; 4];
         reader.read_exact(&mut b).await?;
@@ -65,7 +88,7 @@ impl DiameterClient {
 
         // Limit to 1MB
         if length as usize > 1024 * 1024 {
-            return Err(Error::ClientError("Message too large ".into()));
+            return Err(Error::ClientError("Message too large to read".into()));
         }
 
         // Read the rest of the message
@@ -85,8 +108,8 @@ impl DiameterClient {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
             {
-                let mut futures = self.futures.lock().unwrap();
-                futures.insert(hop_by_hop, tx);
+                let mut msg_caches = self.msg_caches.lock().unwrap();
+                msg_caches.insert(hop_by_hop, tx);
             }
 
             Ok(DiameterRequest::new(req, rx, Arc::clone(&writer)))
@@ -103,22 +126,21 @@ impl DiameterClient {
     }
 }
 
-#[derive(Debug)]
 pub struct DiameterRequest {
     request: DiameterMessage,
-    response: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
+    receiver: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
     writer: Arc<Mutex<OwnedWriteHalf>>,
 }
 
 impl DiameterRequest {
     pub fn new(
         request: DiameterMessage,
-        response: Receiver<DiameterMessage>,
+        receiver: Receiver<DiameterMessage>,
         writer: Arc<Mutex<OwnedWriteHalf>>,
     ) -> Self {
         DiameterRequest {
             request,
-            response: Arc::new(Mutex::new(Some(response))),
+            receiver: Arc::new(Mutex::new(Some(receiver))),
             writer,
         }
     }
@@ -139,16 +161,17 @@ impl DiameterRequest {
 
     pub async fn response(&self) -> Result<DiameterMessage, Error> {
         let rx = self
-            .response
+            .receiver
             .lock()
-            .unwrap()
+            .map_err(|_| Error::ClientError("Response already taken".into()))?
             .take()
-            .ok_or_else(|| Error::ClientError("Receiver already taken".into()))?;
+            .ok_or_else(|| Error::ClientError("Response already taken".into()))?;
 
-        match rx.await {
-            Ok(response) => Ok(response),
-            Err(_) => Err(Error::ClientError("Failed to receive response".into())),
-        }
+        let res = rx
+            .await
+            .map_err(|_| Error::ClientError("Receiver dropped".into()))?;
+
+        Ok(res)
     }
 }
 
