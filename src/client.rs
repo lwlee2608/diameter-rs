@@ -17,33 +17,44 @@ use tokio::sync::oneshot::Sender;
 /// functionality for sending requests and asynchronously receiving responses.
 ///
 /// Fields:
+///     address: The address of the Diameter server to connect to.
 ///     writer: An optional thread-safe writer for sending messages to the server.
 ///     msg_caches: A shared, mutable hash map that maps message IDs to channels for sending responses back to the caller.
+
 pub struct DiameterClient {
+    address: String,
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
 impl DiameterClient {
-    /// Creates a new `DiameterClient` instance.
+    /// Creates a new `DiameterClient` instance with a specified server address.
     ///
     /// Initializes the internal structures but does not establish a connection.
-    pub fn new() -> DiameterClient {
-        DiameterClient {
-            writer: None,
-            msg_caches: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    /// Establishes a connection to a Diameter server.
+    /// The connection to the server will be established when `connect` is called.
     ///
     /// Args:
     ///     addr: The address of the Diameter server to connect to.
     ///
     /// Returns:
-    ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection.
-    pub async fn connect(&mut self, addr: &str) -> Result<(), Error> {
-        let stream = TcpStream::connect(addr).await?;
+    ///     A new instance of `DiameterClient`.
+    pub fn new(addr: &str) -> DiameterClient {
+        DiameterClient {
+            address: addr.into(),
+            writer: None,
+            msg_caches: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Establishes a connection to the Diameter server.
+    ///
+    /// This method uses the server address provided during the client's creation.
+    /// It sets up a TCP connection to the server and initializes the message handling infrastructure.
+    ///
+    /// Returns:
+    ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection process.
+    pub async fn connect(&mut self) -> Result<(), Error> {
+        let stream = TcpStream::connect(self.address.clone()).await?;
 
         let (mut reader, writer) = stream.into_split();
         let writer = Arc::new(Mutex::new(writer));
@@ -271,8 +282,8 @@ mod tests {
         ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
         ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
 
-        let mut client = DiameterClient::new();
-        let _ = client.connect("localhost:3868").await;
+        let mut client = DiameterClient::new("localhost:3868");
+        let _ = client.connect().await;
         let response = client.send_message(ccr).await.unwrap();
         println!("Response: {}", response);
     }

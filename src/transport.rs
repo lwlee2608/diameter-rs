@@ -18,7 +18,7 @@ mod tests {
 
         tokio::spawn(async move {
             server
-                .handle(|req| -> Result<DiameterMessage, Error> {
+                .listen(|req| -> Result<DiameterMessage, Error> {
                     println!("Request : {}", req);
 
                     let mut res = DiameterMessage::new(
@@ -41,8 +41,8 @@ mod tests {
         });
 
         // Diameter Client
-        let mut client = DiameterClient::new();
-        let _ = client.connect("localhost:3868").await;
+        let mut client = DiameterClient::new("localhost:3868");
+        let _ = client.connect().await;
 
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,

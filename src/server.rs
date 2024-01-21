@@ -7,17 +7,49 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 
+/// A Diameter protocol server for handling Diameter requests and responses.
+///
+/// This server listens for incoming Diameter messages, processes them, and sends back responses.
+///
+/// Fields:
+///     listener: The TCP listener that accepts incoming connections.
 pub struct DiameterServer {
     listener: TcpListener,
 }
 
 impl DiameterServer {
+    /// Creates a new `DiameterServer` and starts listening on the specified address.
+    ///
+    /// This method binds to the given address and starts listening for incoming connections.
+    ///
+    /// Args:
+    ///     addr: The address on which the server should listen.
+    ///
+    /// Returns:
+    ///     A `Result` containing the new `DiameterServer` instance or an `Error` if the binding fails.
     pub async fn new(addr: &str) -> Result<DiameterServer, Error> {
         let listener = TcpListener::bind(addr).await?;
         Ok(DiameterServer { listener })
     }
 
-    pub async fn handle<F>(&mut self, handler: F) -> Result<(), Error>
+    /// Listens for incoming connections and processes Diameter messages.
+    ///
+    /// This method continuously accepts new connections, reads incoming Diameter messages,
+    /// uses the provided handler to process them, and sends back the responses.
+    ///
+    /// The server will listen indefinitely, handling each incoming connection in a loop.
+    /// Each connection is handled in its own asynchronous task.
+    ///
+    /// Args:
+    ///     handler: A function or closure that takes a `DiameterMessage` and returns a `Result`
+    ///              with either the response `DiameterMessage` or an `Error`. This handler
+    ///              is responsible for processing the incoming messages and determining the
+    ///              appropriate responses.
+    ///
+    /// Returns:
+    ///     A `Result` indicating the success or failure of the operation. Errors could occur
+    ///     during the acceptance of new connections or during the message handling process.
+    pub async fn listen<F>(&mut self, handler: F) -> Result<(), Error>
     where
         F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Clone + Send + 'static,
     {
@@ -123,7 +155,7 @@ mod tests {
     async fn test_server() {
         let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
         server
-            .handle(|_req| -> Result<DiameterMessage, Error> {
+            .listen(|_req| -> Result<DiameterMessage, Error> {
                 // Return Dummy Value
                 let mut res = DiameterMessage::new(
                     CommandCode::CreditControl,
