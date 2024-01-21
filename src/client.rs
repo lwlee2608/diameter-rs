@@ -59,17 +59,15 @@ impl DiameterClient {
         let hop_by_hop = res.get_hop_by_hop_id();
 
         let sender_opt = {
-            let mut msg_caches = msg_caches
-                .lock()
-                .map_err(|_| Error::ClientError("Failed to retrieve matching request".into()))?;
+            let mut msg_caches = msg_caches.lock()?;
 
             msg_caches.remove(&hop_by_hop)
         };
         match sender_opt {
             Some(sender) => {
-                sender
-                    .send(res)
-                    .map_err(|_| Error::ClientError("Failed to send response".into()))?;
+                sender.send(res).map_err(|e| {
+                    Error::ClientError(format!("Failed to send response; error: {:?}", e))
+                })?;
             }
             None => {
                 Err(Error::ClientError(format!(
@@ -108,7 +106,7 @@ impl DiameterClient {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
             {
-                let mut msg_caches = self.msg_caches.lock().unwrap();
+                let mut msg_caches = self.msg_caches.lock()?;
                 msg_caches.insert(hop_by_hop, tx);
             }
 
@@ -153,7 +151,7 @@ impl DiameterRequest {
         let mut encoded = Vec::new();
         self.request.encode_to(&mut encoded)?;
 
-        let mut writer = self.writer.lock().unwrap();
+        let mut writer = self.writer.lock()?;
         writer.write_all(&encoded).await?;
 
         Ok(())
@@ -162,14 +160,13 @@ impl DiameterRequest {
     pub async fn response(&self) -> Result<DiameterMessage, Error> {
         let rx = self
             .receiver
-            .lock()
-            .map_err(|_| Error::ClientError("Response already taken".into()))?
+            .lock()?
             .take()
             .ok_or_else(|| Error::ClientError("Response already taken".into()))?;
 
-        let res = rx
-            .await
-            .map_err(|_| Error::ClientError("Receiver dropped".into()))?;
+        let res = rx.await.map_err(|e| {
+            Error::ClientError(format!("Failed to receive response; error: {:?}", e))
+        })?;
 
         Ok(res)
     }
