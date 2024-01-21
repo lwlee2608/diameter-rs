@@ -11,7 +11,7 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 
 pub struct DiameterClient {
-    writer: Option<OwnedWriteHalf>,
+    writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     futures: Arc<Mutex<HashMap<u32, oneshot::Sender<DiameterMessage>>>>,
 }
 
@@ -27,6 +27,7 @@ impl DiameterClient {
         let stream = TcpStream::connect(addr).await?;
 
         let (mut reader, writer) = stream.into_split();
+        let writer = Arc::new(Mutex::new(writer));
         self.writer = Some(writer);
 
         let futures = Arc::clone(&self.futures);
@@ -36,10 +37,13 @@ impl DiameterClient {
                     Ok(res) => {
                         let hop_by_hop = res.get_hop_by_hop_id();
                         let sender_opt = {
+                            // TODO handle lock failure
                             let mut futures = futures.lock().unwrap();
+                            // TODO handle futures not found
                             futures.remove(&hop_by_hop)
                         };
                         if let Some(sender) = sender_opt {
+                            // TODO handle send failure
                             sender.send(res).unwrap();
                         }
                     }
@@ -76,15 +80,8 @@ impl DiameterClient {
         Ok(res)
     }
 
-    pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
-        if let Some(writer) = self.writer.as_mut() {
-            // Encode DiameterMessage request into binary 'encoded'
-            let mut encoded = Vec::new();
-            req.encode_to(&mut encoded)?;
-
-            // Send the encoded request
-            writer.write_all(&encoded).await?;
-
+    pub fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
+        if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
             {
@@ -92,30 +89,37 @@ impl DiameterClient {
                 futures.insert(hop_by_hop, tx);
             }
 
-            Ok(DiameterRequest::new(req, rx))
+            Ok(DiameterRequest::new(req, rx, Arc::clone(&writer)))
         } else {
             Err(Error::ClientError("Not connected".into()))
         }
     }
 
-    pub async fn send(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
-        let request = self.request(req).await?;
-        let response = request.get_response().await?;
+    pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
+        let mut request = self.request(req)?;
+        let _ = request.send().await?;
+        let response = request.response().await?;
         Ok(response)
     }
 }
 
 #[derive(Debug)]
 pub struct DiameterRequest {
-    pub request: DiameterMessage,
-    pub response: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
+    request: DiameterMessage,
+    response: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
+    writer: Arc<Mutex<OwnedWriteHalf>>,
 }
 
 impl DiameterRequest {
-    pub fn new(request: DiameterMessage, response: Receiver<DiameterMessage>) -> Self {
+    pub fn new(
+        request: DiameterMessage,
+        response: Receiver<DiameterMessage>,
+        writer: Arc<Mutex<OwnedWriteHalf>>,
+    ) -> Self {
         DiameterRequest {
             request,
             response: Arc::new(Mutex::new(Some(response))),
+            writer,
         }
     }
 
@@ -123,7 +127,17 @@ impl DiameterRequest {
         &self.request
     }
 
-    pub async fn get_response(&self) -> Result<DiameterMessage, Error> {
+    pub async fn send(&mut self) -> Result<(), Error> {
+        let mut encoded = Vec::new();
+        self.request.encode_to(&mut encoded)?;
+
+        let mut writer = self.writer.lock().unwrap();
+        writer.write_all(&encoded).await?;
+
+        Ok(())
+    }
+
+    pub async fn response(&self) -> Result<DiameterMessage, Error> {
         let rx = self
             .response
             .lock()
@@ -167,7 +181,7 @@ mod tests {
 
         let mut client = DiameterClient::new();
         let _ = client.connect("localhost:3868").await;
-        let response = client.send(ccr).await.unwrap();
+        let response = client.send_message(ccr).await.unwrap();
         println!("Response: {}", response);
     }
 }

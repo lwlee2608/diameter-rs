@@ -56,7 +56,7 @@ mod tests {
         ccr.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
         ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
         ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
-        let cca = client.send(ccr).await.unwrap();
+        let cca = client.send_message(ccr).await.unwrap();
 
         println!("Response: {}", cca);
 
