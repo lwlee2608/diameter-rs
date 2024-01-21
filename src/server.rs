@@ -4,7 +4,7 @@ use log::error;
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::TcpListener;
 
 /// A Diameter protocol server for handling Diameter requests and responses.
@@ -54,17 +54,16 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Clone + Send + 'static,
     {
         loop {
-            let (stream, _) = self.listener.accept().await?;
+            let (mut stream, _) = self.listener.accept().await?;
 
             let peer_addr = match stream.peer_addr() {
                 Ok(addr) => addr.to_string(),
                 Err(_) => "Unknown".to_string(),
             };
 
-            let (mut reader, mut writer) = stream.into_split();
-
             let handler = handler.clone();
             tokio::spawn(async move {
+                let (mut reader, mut writer) = stream.split();
                 loop {
                     // Read and decode the request
                     let req = match Self::read_and_decode_message(&mut reader).await {
@@ -100,7 +99,9 @@ impl DiameterServer {
         }
     }
 
-    async fn read_and_decode_message(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
+    async fn read_and_decode_message<'a>(
+        reader: &mut ReadHalf<'a>,
+    ) -> Result<DiameterMessage, Error> {
         // Read first 4 bytes to determine the length
         let mut b = [0; 4];
         reader.read_exact(&mut b).await?;
@@ -124,8 +125,8 @@ impl DiameterServer {
         DiameterMessage::decode_from(&mut cursor)
     }
 
-    async fn encode_and_send_message(
-        writer: &mut OwnedWriteHalf,
+    async fn encode_and_send_message<'a>(
+        writer: &mut WriteHalf<'a>,
         msg: DiameterMessage,
     ) -> Result<(), Error> {
         // Encode and send the response
