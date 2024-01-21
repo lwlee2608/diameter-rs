@@ -11,12 +11,23 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 
+/// A Diameter protocol client for sending and receiving Diameter messages.
+///
+/// The client maintains a connection to a Diameter server and provides
+/// functionality for sending requests and asynchronously receiving responses.
+///
+/// Fields:
+///     writer: An optional thread-safe writer for sending messages to the server.
+///     msg_caches: A shared, mutable hash map that maps message IDs to channels for sending responses back to the caller.
 pub struct DiameterClient {
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
 impl DiameterClient {
+    /// Creates a new `DiameterClient` instance.
+    ///
+    /// Initializes the internal structures but does not establish a connection.
     pub fn new() -> DiameterClient {
         DiameterClient {
             writer: None,
@@ -24,6 +35,13 @@ impl DiameterClient {
         }
     }
 
+    /// Establishes a connection to a Diameter server.
+    ///
+    /// Args:
+    ///     addr: The address of the Diameter server to connect to.
+    ///
+    /// Returns:
+    ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection.
     pub async fn connect(&mut self, addr: &str) -> Result<(), Error> {
         let stream = TcpStream::connect(addr).await?;
 
@@ -34,9 +52,9 @@ impl DiameterClient {
         let msg_caches = Arc::clone(&self.msg_caches);
         tokio::spawn(async move {
             loop {
-                match Self::read(&mut reader).await {
+                match Self::read_and_decode_message(&mut reader).await {
                     Ok(res) => {
-                        if let Err(e) = Self::process_response(msg_caches.clone(), res).await {
+                        if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
                             log::error!("Failed to process response; error: {:?}", e);
                             return;
                         }
@@ -52,7 +70,7 @@ impl DiameterClient {
         Ok(())
     }
 
-    async fn process_response(
+    async fn process_decoded_msg(
         msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
         res: DiameterMessage,
     ) -> Result<(), Error> {
@@ -79,7 +97,7 @@ impl DiameterClient {
         Ok(())
     }
 
-    async fn read(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
+    async fn read_and_decode_message(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
         let mut b = [0; 4];
         reader.read_exact(&mut b).await?;
         let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
@@ -101,6 +119,15 @@ impl DiameterClient {
         Ok(res)
     }
 
+    /// Initiates a Diameter request.
+    ///
+    /// This method creates and caches a request, readying it for sending to the server.
+    ///
+    /// Args:
+    ///     req: The Diameter message to send as a request.
+    ///
+    /// Returns:
+    ///     A `Result` containing a `DiameterRequest` or an error if the client is not connected.
     pub fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
         if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
@@ -116,6 +143,15 @@ impl DiameterClient {
         }
     }
 
+    /// Sends a Diameter message and waits for the response.
+    ///
+    /// This is a convenience method that combines sending a request and waiting for its response.
+    ///
+    /// Args:
+    ///     req: The Diameter message to send.
+    ///
+    /// Returns:
+    ///     A `Result` containing the response `DiameterMessage` or an error.
     pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
         let mut request = self.request(req)?;
         let _ = request.send().await?;
@@ -124,6 +160,15 @@ impl DiameterClient {
     }
 }
 
+/// Represents a single Diameter request and its associated response channel.
+///
+/// This structure is used to manage the lifecycle of a Diameter request,
+/// including sending the request and receiving the response.
+///
+/// Fields:
+///     request: The Diameter message representing the request.
+///     receiver: A channel for receiving the response to the request.
+///     writer: A thread-safe writer for sending the request to the server.
 pub struct DiameterRequest {
     request: DiameterMessage,
     receiver: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
@@ -131,6 +176,15 @@ pub struct DiameterRequest {
 }
 
 impl DiameterRequest {
+    /// Creates a new `DiameterRequest`.
+    ///
+    /// Args:
+    ///     request: The Diameter message to be sent as a request.
+    ///     receiver: The channel receiver for receiving the response.
+    ///     writer: A shared reference to the writer for sending the request.
+    ///
+    /// Returns:
+    ///     A new instance of `DiameterRequest`.
     pub fn new(
         request: DiameterMessage,
         receiver: Receiver<DiameterMessage>,
@@ -143,10 +197,22 @@ impl DiameterRequest {
         }
     }
 
+    /// Returns a reference to the request message.
+    ///
+    /// This method allows access to the original request message.
+    ///
+    /// Returns:
+    ///     A reference to the `DiameterMessage` representing the request.
     pub fn get_request(&self) -> &DiameterMessage {
         &self.request
     }
 
+    /// Sends the request to the Diameter server.
+    ///
+    /// This method encodes and sends the request message to the server.
+    ///
+    /// Returns:
+    ///     A `Result` indicating the success or failure of sending the request.
     pub async fn send(&mut self) -> Result<(), Error> {
         let mut encoded = Vec::new();
         self.request.encode_to(&mut encoded)?;
@@ -157,6 +223,12 @@ impl DiameterRequest {
         Ok(())
     }
 
+    /// Waits for and returns the response to the request.
+    ///
+    /// This method waits for the response from the server to the request.
+    ///
+    /// Returns:
+    ///     A `Result` containing the response `DiameterMessage` or an error if the response cannot be received.
     pub async fn response(&self) -> Result<DiameterMessage, Error> {
         let rx = self
             .receiver
