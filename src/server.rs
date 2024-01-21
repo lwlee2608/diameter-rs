@@ -4,6 +4,7 @@ use log::error;
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpListener;
 
 pub struct DiameterServer {
@@ -21,52 +22,26 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Clone + Send + 'static,
     {
         loop {
-            let (mut socket, _) = self.listener.accept().await?;
+            let (stream, _) = self.listener.accept().await?;
+
+            let peer_addr = match stream.peer_addr() {
+                Ok(addr) => addr.to_string(),
+                Err(_) => "Unknown".to_string(),
+            };
+
+            let (mut reader, mut writer) = stream.into_split();
+
             let handler = handler.clone();
             tokio::spawn(async move {
-                let peer_addr = match socket.peer_addr() {
-                    Ok(addr) => addr.to_string(),
-                    Err(_) => "Unknown".to_string(),
-                };
-
                 loop {
-                    // Read first 4 bytes to determine the length
-                    let mut b = [0; 4];
-                    if let Err(e) = socket.read_exact(&mut b).await {
-                        error!(
-                            "Failed to read header from socket (client: {}); error: {:?}",
-                            peer_addr, e
-                        );
-                        return;
-                    }
-                    let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
-
-                    // Limit to 1MB
-                    if length > 1024 * 1024 {
-                        error!("Message too large (client: {})", peer_addr);
-                        return;
-                    }
-
-                    // Read the rest of the message
-                    let mut buf = vec![0; length as usize - 4];
-                    if let Err(e) = socket.read_exact(&mut buf).await {
-                        error!(
-                            "Failed to read message from socket (client: {}); error: {:?}",
-                            peer_addr, e
-                        );
-                        return;
-                    }
-
-                    let mut request = Vec::with_capacity(length as usize);
-                    request.extend_from_slice(&b);
-                    request.append(&mut buf);
-
-                    // Decode the request
-                    let mut cursor = Cursor::new(request);
-                    let req = match DiameterMessage::decode_from(&mut cursor) {
+                    // Read and decode the request
+                    let req = match Self::read_and_decode_message(&mut reader).await {
                         Ok(req) => req,
                         Err(e) => {
-                            error!("failed to decode request; err = {:?}", e);
+                            error!(
+                                "[{}] Failed to read and decode message; err = {:?}",
+                                peer_addr, e
+                            );
                             return;
                         }
                     };
@@ -75,26 +50,60 @@ impl DiameterServer {
                     let res = match handler(req) {
                         Ok(res) => res,
                         Err(e) => {
-                            error!("request handler error: {:?}", e);
+                            error!("[{}] Request handler error: {:?}", peer_addr, e);
                             return;
                         }
                     };
 
                     // Encode and send the response
-                    let mut response = Vec::new();
-                    if res.encode_to(&mut response).is_err() {
-                        error!("failed to encode response");
-                        return;
-                    }
-
-                    // Send the response
-                    if let Err(e) = socket.write_all(&response).await {
-                        error!("failed to write to socket; err = {:?}", e);
+                    if let Err(e) = Self::encode_and_send_message(&mut writer, res).await {
+                        error!(
+                            "[{}] Failed to encode and send response; err = {:?}",
+                            peer_addr, e
+                        );
                         return;
                     }
                 }
             });
         }
+    }
+
+    async fn read_and_decode_message(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
+        // Read first 4 bytes to determine the length
+        let mut b = [0; 4];
+        reader.read_exact(&mut b).await?;
+        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+        // Limit to 1MB
+        if length > 1024 * 1024 {
+            return Err(Error::ServerError("Message too large".into()));
+        }
+
+        // Read the rest of the message
+        let mut buf = vec![0; length as usize - 4];
+        reader.read_exact(&mut buf).await?;
+
+        let mut request = Vec::with_capacity(length as usize);
+        request.extend_from_slice(&b);
+        request.append(&mut buf);
+
+        // Decode the message
+        let mut cursor = Cursor::new(request);
+        DiameterMessage::decode_from(&mut cursor)
+    }
+
+    async fn encode_and_send_message(
+        writer: &mut OwnedWriteHalf,
+        msg: DiameterMessage,
+    ) -> Result<(), Error> {
+        // Encode and send the response
+        let mut response = Vec::new();
+        msg.encode_to(&mut response)?;
+
+        // Send the response
+        writer.write_all(&response).await?;
+
+        Ok(())
     }
 }
 
