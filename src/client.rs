@@ -2,7 +2,7 @@ use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use std::collections::HashMap;
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
+use tokio::sync::Mutex;
 
 /// A Diameter protocol client for sending and receiving Diameter messages.
 ///
@@ -88,7 +89,7 @@ impl DiameterClient {
         let hop_by_hop = res.get_hop_by_hop_id();
 
         let sender_opt = {
-            let mut msg_caches = msg_caches.lock()?;
+            let mut msg_caches = msg_caches.lock().await;
 
             msg_caches.remove(&hop_by_hop)
         };
@@ -139,12 +140,12 @@ impl DiameterClient {
     ///
     /// Returns:
     ///     A `Result` containing a `DiameterRequest` or an error if the client is not connected.
-    pub fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
+    pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
         if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
             {
-                let mut msg_caches = self.msg_caches.lock()?;
+                let mut msg_caches = self.msg_caches.lock().await;
                 msg_caches.insert(hop_by_hop, tx);
             }
 
@@ -164,7 +165,7 @@ impl DiameterClient {
     /// Returns:
     ///     A `Result` containing the response `DiameterMessage` or an error.
     pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
-        let mut request = self.request(req)?;
+        let mut request = self.request(req).await?;
         let _ = request.send().await?;
         let response = request.response().await?;
         Ok(response)
@@ -228,7 +229,7 @@ impl DiameterRequest {
         let mut encoded = Vec::new();
         self.request.encode_to(&mut encoded)?;
 
-        let mut writer = self.writer.lock()?;
+        let mut writer = self.writer.lock().await;
         writer.write_all(&encoded).await?;
 
         Ok(())
@@ -243,7 +244,8 @@ impl DiameterRequest {
     pub async fn response(&self) -> Result<DiameterMessage, Error> {
         let rx = self
             .receiver
-            .lock()?
+            .lock()
+            .await
             .take()
             .ok_or_else(|| Error::ClientError("Response already taken".into()))?;
 
