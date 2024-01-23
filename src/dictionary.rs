@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_xml_rs::from_str;
 use std::collections::BTreeMap;
 
@@ -15,68 +15,6 @@ pub struct AvpDefinition {
     code: u32,
     name: String,
     avp_type: AvpType,
-}
-
-lazy_static! {
-    pub static ref DEFAULT_DICT: Definition = {
-        let mut definition = Definition::new();
-        definition.add_avp(AvpDefinition {
-            code: 263,
-            name: String::from("Session-Id"),
-            avp_type: AvpType::UTF8String,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 264,
-            name: String::from("Origin-Host"),
-            avp_type: AvpType::Identity,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 296,
-            name: String::from("Origin-Realm"),
-            avp_type: AvpType::Identity,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 268,
-            name: String::from("Result-Code"),
-            avp_type: AvpType::Unsigned32,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 415,
-            name: String::from("CC-Request-Number"),
-            avp_type: AvpType::Unsigned32,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 416,
-            name: String::from("CC-Request-Type"),
-            avp_type: AvpType::Enumerated,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 30,
-            name: String::from("Calling-Station-Id"),
-            avp_type: AvpType::UTF8String,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 44,
-            name: String::from("Accounting-Session-Id"),
-            avp_type: AvpType::OctetString,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 571,
-            name: String::from("Timezone-Offset"),
-            avp_type: AvpType::Integer32,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 873,
-            name: String::from("Service-Information"),
-            avp_type: AvpType::Grouped,
-        });
-        definition.add_avp(AvpDefinition {
-            code: 874,
-            name: String::from("PS-Information"),
-            avp_type: AvpType::Grouped,
-        });
-        return definition;
-    };
 }
 
 impl Definition {
@@ -109,8 +47,6 @@ impl Definition {
     }
 }
 
-// XML Parsing
-
 #[derive(Debug, Deserialize, PartialEq)]
 struct Diameter {
     application: Application,
@@ -120,7 +56,7 @@ struct Diameter {
 struct Application {
     id: String,
     name: String,
-    command: Command,
+    command: Option<Command>,
     #[serde(rename = "avp", default)]
     avps: Vec<Avp>,
 }
@@ -152,12 +88,12 @@ struct Rule {
 struct Avp {
     name: String,
     code: String,
-    must: String,
-    may: String,
+    must: Option<String>,
+    may: Option<String>,
     #[serde(rename = "must-not")]
-    must_not: String,
+    must_not: Option<String>,
     #[serde(rename = "may-encrypt")]
-    may_encrypt: String,
+    may_encrypt: Option<String>,
     data: Data,
 }
 
@@ -185,11 +121,20 @@ pub fn parse(xml: &str) -> Definition {
             "UTF8String" => AvpType::UTF8String,
             "OctetString" => AvpType::OctetString,
             "Integer32" => AvpType::Integer32,
+            "Integer64" => AvpType::Integer64,
             "Unsigned32" => AvpType::Unsigned32,
+            "Unsigned64" => AvpType::Unsigned64,
             "Enumerated" => AvpType::Enumerated,
             "Grouped" => AvpType::Grouped,
-            "Identity" => AvpType::Identity,
-            _ => panic!("Unknown AVP type: {}", avp.data.data_type),
+            "DiameterIdentity" => AvpType::Identity,
+            "DiameterURI" => AvpType::DiameterURI,
+            "Time" => AvpType::Time,
+            "Address" => AvpType::Address,
+            "IPv4" => AvpType::AddressIPv4,
+            "IPv6" => AvpType::AddressIPv6,
+            "Float32" => AvpType::Float32,
+            "Float64" => AvpType::Float64,
+            _ => AvpType::Unknown,
         };
 
         let avp_definition = AvpDefinition {
@@ -204,76 +149,148 @@ pub fn parse(xml: &str) -> Definition {
     definition
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_xml() {
+lazy_static! {
+    pub static ref DEFAULT_DICT: Definition = {
+        let xml = &DEFAULT_DICT_XML;
+        parse(xml)
+    };
+    pub static ref DEFAULT_DICT_XML: &'static str = {
         let xml = r#"
-    <diameter>
-        <application id="0" name="Base">
-            <command code="257" short="CE" name="Capabilities-Exchange">
-                <request>
-                    <rule avp="Origin-Host" required="true" max="1"/>
-                    <rule avp="Origin-Realm" required="true" max="1"/>
-                    <rule avp="Host-IP-Address" required="true" min="1"/>
-                    <rule avp="Vendor-Id" required="true" max="1"/>
-                    <rule avp="Product-Name" required="true" max="1"/>
-                    <rule avp="Origin-State-Id" required="false" max="1"/>
-                    <rule avp="Supported-Vendor-Id" required="False"/>
-                    <rule avp="Auth-Application-Id" required="False"/>
-                    <rule avp="Inband-Security-Id" required="False"/>
-                    <rule avp="Acct-Application-Id" required="False"/>
-                    <rule avp="Vendor-Specific-Application-Id" required="False"/>
-                    <rule avp="Firmware-Revision" required="False" max="1"/>
-                </request>
-                <answer>
-                    <rule avp="Result-Code" required="true" max="1"/>
-                    <rule avp="Origin-Host" required="true" max="1"/>
-                    <rule avp="Origin-Realm" required="true" max="1"/>
-                    <rule avp="Host-IP-Address" required="true" min="1"/>
-                    <rule avp="Vendor-Id" required="true" max="1"/>
-                    <rule avp="Product-Name" required="true" max="1"/>
-                    <rule avp="Origin-State-Id" required="false" max="1"/>
-                    <rule avp="Error-Message" required="false" max="1"/>
-                    <rule avp="Failed-AVP" required="false" max="1"/>
-                    <rule avp="Supported-Vendor-Id" required="False"/>
-                    <rule avp="Auth-Application-Id" required="False"/>
-                    <rule avp="Inband-Security-Id" required="False"/>
-                    <rule avp="Acct-Application-Id" required="False"/>
-                    <rule avp="Vendor-Specific-Application-Id" required="False"/>
-                    <rule avp="Firmware-Revision" required="False" max="1"/>
-                </answer>
-            </command>
+<diameter>
+    <application id="0" name="Base">
+		<avp name="Session-Id" code="263" must="M" may="P" must-not="V" may-encrypt="Y">
+			<data type="UTF8String"/>
+		</avp>
 
-            <avp name="Acct-Interim-Interval" code="85" must="M" may="P" must-not="V" may-encrypt="Y">
-                <data type="Unsigned32"/>
-            </avp>
+		<avp name="Origin-Host" code="264" must="M" may="P" must-not="V" may-encrypt="-">
+            <data type="DiameterIdentity"/>
+        </avp>
 
-            <avp name="Accounting-Realtime-Required" code="483" must="M" may="P" must-not="V" may-encrypt="Y">
-                <data type="Enumerated">
-                    <item code="1" name="DELIVER_AND_GRANT"/>
-                    <item code="2" name="GRANT_AND_STORE"/>
-                    <item code="3" name="GRANT_AND_LOSE"/>
-                </data>
-            </avp>
+		<avp name="CC-Request-Number" code="415" must="M" may="P" must-not="V" may-encrypt="Y">
+			<!-- http://tools.ietf.org/html/rfc4006#section-8.2 -->
+			<data type="Unsigned32"/>
+		</avp>
 
-            <avp name="Acct-Multi-Session-Id" code="50" must="M" may="P" must-not="V" may-encrypt="Y">
-                <data type="UTF8String"/>
-            </avp>
+		<avp name="Origin-Realm" code="296" must="M" may="P" must-not="V" may-encrypt="-">
+            		<data type="DiameterIdentity"/>
+        	</avp>
 
-            <avp name="Accounting-Record-Number" code="485" must="M" may="P" must-not="V" may-encrypt="Y">
-                <data type="Unsigned32"/>
-            </avp>
-        </application>
-    </diameter>
+		<avp name="Destination-Host" code="293" must="M" may="P" must-not="V" may-encrypt="-">
+            <data type="DiameterIdentity"/>
+        </avp>
+
+        <avp name="Destination-Realm" code="283" must="M" may="P" must-not="V" may-encrypt="-">
+            <data type="DiameterIdentity"/>
+        </avp>
+		
+		<avp name="Auth-Application-Id" code="258" must="M" may="P" must-not="V" may-encrypt="-">
+            <data type="Unsigned32"/>
+        </avp>
+
+		 <avp name="Result-Code" code="268" must="M" may="P" must-not="V" may-encrypt="-">
+            <data type="Unsigned32"/>
+        </avp>
+
+		<avp name="Service-Information" code="873" must="V,M" may="P" must-not="-" may-encrypt="N" vendor-id="10415">
+			<data type="Grouped">
+				<rule avp="Subscription-Id" required="false"/>
+				<rule avp="AoC-Information" required="false" max="1"/>
+				<rule avp="PS-Information" required="false" max="1"/>
+				<rule avp="IMS-Information" required="false" max="1"/>
+				<rule avp="MMS-Information" required="false" max="1"/>
+				<rule avp="LCS-Information" required="false" max="1"/>
+				<rule avp="PoC-Information" required="false" max="1"/>
+				<rule avp="MBMS-Information" required="false" max="1"/>
+				<rule avp="SMS-Information" required="false" max="1"/>
+				<rule avp="VCS-Information" required="false" max="1"/>
+				<rule avp="MMTel-Information" required="false" max="1"/>
+				<rule avp="Service-Generic-Information" required="false" max="1"/>
+				<rule avp="IM-Information" required="false" max="1"/>
+				<rule avp="DCD-Information" required="false" max="1"/>
+			</data>
+		</avp>
+
+		<avp name="PS-Information" code="874" must="V,M" may="P" must-not="-" may-encrypt="N" vendor-id="10415">
+			<data type="Grouped">
+				<rule avp="TGPP-Charging-Id" required="false" max="1"/>
+				<rule avp="PDN-Connection-Charging-Id" required="false" max="1"/>
+				<rule avp="Node-Id" required="false" max="1"/>
+				<rule avp="TGPP-PDP-Type" required="false" max="1"/>
+				<rule avp="PDP-Address" required="false"/>
+				<rule avp="PDP-Address-Prefix-Length" required="false" max="1"/>
+				<rule avp="Dynamic-Address-Flag" required="false" max="1"/>
+				<rule avp="Dynamic-Address-Flag-Extension" required="false" max="1"/>
+				<rule avp="QoS-Information" required="false" max="1"/>
+				<rule avp="SGSN-Address" required="false"/>
+				<rule avp="GGSN-Address" required="false"/>
+				<rule avp="TDF-IP-Address" required="false"/>
+				<rule avp="SGW-Address" required="false"/>
+				<rule avp="ePDG-Address" required="false"/>
+				<rule avp="CG-Address" required="false" max="1"/>
+				<rule avp="Serving-Node-Type" required="false" max="1"/>
+				<rule avp="SGW-Change" required="false" max="1"/>
+				<rule avp="TGPP-IMSI-MCC-MNC" required="false" max="1"/>
+				<rule avp="IMSI-Unauthenticated-Flag" required="false" max="1"/>
+				<rule avp="TGPP-GGSN-MCC-MNC" required="false" max="1"/>
+				<rule avp="TGPP-NSAPI" required="false" max="1"/>
+				<rule avp="Called-Station-Id" required="false" max="1"/>
+				<rule avp="TGPP-Session-Stop-Indicator" required="false" max="1"/>
+				<rule avp="TGPP-Selection-Mode" required="false" max="1"/>
+				<rule avp="TGPP-Charging-Characteristics" required="false" max="1"/>
+				<rule avp="Charging-Characteristics-Selection-Mode" required="false" max="1"/>
+				<rule avp="TGPP-SGSN-MCC-MNC" required="false" max="1"/>
+				<rule avp="TGPP-MS-TimeZone" required="false" max="1"/>
+				<rule avp="Charging-Rule-Base-Name" required="false" max="1"/>
+				<rule avp="ADC-Rule-Base-Name" required="false" max="1"/>
+				<rule avp="TGPP-User-Location-Info" required="false" max="1"/>
+				<rule avp="User-Location-Info-Time" required="false" max="1"/>
+				<rule avp="User-CSG-Information" required="false" max="1"/>
+				<rule avp="Presence-Reporting-Area-Information" required="false" max="1"/>
+				<rule avp="TGPP2-BSID" required="false" max="1"/>
+				<rule avp="TWAN-User-Location-Info" required="false" max="1"/>
+				<rule avp="TGPP-RAT-Type" required="false" max="1"/>
+				<rule avp="PS-Furnish-Charging-Information" required="false" max="1"/>
+				<rule avp="PDP-Context-Type" required="false" max="1"/>
+				<rule avp="Offline-Charging" required="false" max="1"/>
+				<rule avp="Traffic-Data-Volumes" required="false"/>
+				<rule avp="Service-Data-Container" required="false"/>
+				<rule avp="User-Equipment-Info" required="false" max="1"/>
+				<rule avp="Terminal-Information" required="false" max="1"/>
+				<rule avp="Start-Time" required="false" max="1"/>
+				<rule avp="Stop-Time" required="false" max="1"/>
+				<rule avp="Change-Condition" required="false" max="1"/>
+				<rule avp="Diagnostics" required="false" max="1"/>
+				<rule avp="Low-Priority-Indicator" required="false" max="1"/>
+				<rule avp="MME-Number-for-MT-SMS" required="false" max="1"/>
+				<rule avp="MME-Name" required="false" max="1"/>
+				<rule avp="MME-Realm" required="false" max="1"/>
+				<rule avp="Logical-Access-Id" required="false" max="1"/>
+				<rule avp="Physical-Access-Id" required="false" max="1"/>
+				<rule avp="Fixed-User-Location-Info" required="false" max="1"/>
+				<rule avp="CN-Operator-Selection-Entity" required="false" max="1"/>
+			</data>
+		</avp>
+
+		<avp name="Called-Station-Id" code="30" must="M" may="-" must-not="V" may-encrypt="Y">
+            <data type="UTF8String"/>
+        </avp>
+	
+		<avp name="CC-Request-Type" code="416" must="M" may="P" must-not="V" may-encrypt="Y">
+			<!-- http://tools.ietf.org/html/rfc4006#section-8.3 -->
+			<data type="Enumerated">
+				<item code="1" name="INITIAL_REQUEST"/>
+				<item code="2" name="UPDATE_REQUEST"/>
+				<item code="3" name="TERMINATION_REQUEST"/>
+			</data>
+		</avp>
+
+		<avp name="Timezone-Offset" code="571" vendor-id="10415" must="V" may-encrypt="Y">
+			<data type="Integer32"/>
+		</avp>
+		
+    </application>
+</diameter>
     "#;
-
-        // let dict: Diameter = from_str(xml).unwrap();
-        // println!("dict: {:?}", dict);
-
-        let definition = parse(xml);
-        println!("definition: {:?}", definition);
-    }
+        xml
+    };
 }
