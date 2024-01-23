@@ -19,14 +19,15 @@ diameter-rs = "^0.1"
 
 ### Diameter Server Example
 ```rust
-use crate::avp;
-use crate::avp::enumerated::EnumeratedAvp;
-use crate::avp::identity::IdentityAvp;
-use crate::avp::unsigned32::Unsigned32Avp;
-use crate::avp::utf8string::UTF8StringAvp;
-use crate::error::Error;
-use crate::server::DiameterServer;
-use crate::diameter::{DiameterMessage, REQUEST_FLAG};
+use diameter::avp;
+use diameter::avp::Avp;
+use diameter::avp::enumerated::EnumeratedAvp;
+use diameter::avp::identity::IdentityAvp;
+use diameter::avp::unsigned32::Unsigned32Avp;
+use diameter::avp::utf8string::UTF8StringAvp;
+use diameter::error::Error;
+use diameter::server::DiameterServer;
+use diameter::diameter::{DiameterMessage, REQUEST_FLAG};
 
 #[tokio::main]
 async fn main() {
@@ -63,12 +64,14 @@ async fn main() {
 
 ### Diameter Client Example
 ```rust
-use crate::avp;
-use crate::avp::identity::IdentityAvp;
-use crate::avp::unsigned32::Unsigned32Avp;
-use crate::avp::utf8string::UTF8StringAvp;
-use crate::client::DiameterClient;
-use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
+use diameter::avp;
+use diameter::avp::Avp;
+use diameter::avp::identity::IdentityAvp;
+use diameter::avp::enumerated::EnumeratedAvp;
+use diameter::avp::unsigned32::Unsigned32Avp;
+use diameter::avp::utf8string::UTF8StringAvp;
+use diameter::client::DiameterClient;
+use diameter::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
 
 #[tokio::main]
 async fn main() {

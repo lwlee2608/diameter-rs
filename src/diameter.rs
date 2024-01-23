@@ -1,3 +1,35 @@
+//! # Diameter Protocol
+//!
+//! This crate provides functionalities for handling Diameter protocol messages as defined in RFC 6733.
+//!
+//! ## Raw Packet Format
+//! The diagram below illustrates the raw packet format for the Diameter header:
+//! ```text
+//!   0                   1                   2                   3
+//!   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |    Version    |                 Message Length                |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  | command flags |                  Command-Code                 |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |                         Application-ID                        |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |                      Hop-by-Hop Identifier                    |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |                      End-to-End Identifier                    |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |                              AVPs                             |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!  |                              ...                              |
+//!  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//!
+//!  Command Flags:
+//!    0 1 2 3 4 5 6 7
+//!   +-+-+-+-+-+-+-+-+  R(equest), P(roxyable), E(rror)
+//!   |R P E T r r r r|  T(Potentially re-transmitted message), r(eserved)
+//!   +-+-+-+-+-+-+-+-+
+//! ```
+
 use crate::avp::Avp;
 use crate::dictionary;
 use crate::error::Error;
@@ -8,46 +40,25 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
 
-/*
- * Raw packet format:
- *   0                   1                   2                   3
- *   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |    Version    |                 Message Length                |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  | command flags |                  Command-Code                 |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                         Application-ID                        |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                      Hop-by-Hop Identifier                    |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                      End-to-End Identifier                    |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                              AVPs                             |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *  |                              ...                              |
- *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *
- * Command Flags:
- *   0 1 2 3 4 5 6 7
- *  +-+-+-+-+-+-+-+-+  R(equest), P(roxyable), E(rror)
- *  |R P E T r r r r|  T(Potentially re-transmitted message), r(eserved)
- *  +-+-+-+-+-+-+-+-+
- *
- */
-
 pub const HEADER_LENGTH: u32 = 20;
 pub const REQUEST_FLAG: u8 = 0x80;
 pub const PROXYABLE_FLAG: u8 = 0x40;
 pub const ERROR_FLAG: u8 = 0x20;
 pub const RETRANSMIT_FLAG: u8 = 0x10;
 
+/// Represents a Diameter message as defined in RFC 6733.
+///
+/// It consists of a standard header and a list of Attribute-Value Pairs (AVPs).
 #[derive(Debug)]
 pub struct DiameterMessage {
     header: DiameterHeader,
     avps: Vec<Avp>,
 }
 
+/// Represents the header part of a Diameter message.
+///
+/// It includes version, message length, command flags, command code, application ID,
+/// and unique identifiers for routing and matching requests and replies.
 #[derive(Debug)]
 pub struct DiameterHeader {
     version: u8,
@@ -59,6 +70,7 @@ pub struct DiameterHeader {
     end_to_end_id: u32,
 }
 
+/// Enumerates various command codes used in Diameter messages.
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum CommandCode {
     Error = 0,
@@ -75,6 +87,7 @@ pub enum CommandCode {
     AA = 265,
 }
 
+/// Enumerates the different application IDs that can be used in Diameter messages
 #[repr(u32)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 pub enum ApplicationId {
@@ -87,6 +100,8 @@ pub enum ApplicationId {
 }
 
 impl DiameterMessage {
+    /// Constructs a new `DiameterMessage` with the specified parameters.
+    /// Initializes the header with given values and an empty list of AVPs.
     pub fn new(
         code: CommandCode,
         application_id: ApplicationId,
@@ -107,44 +122,54 @@ impl DiameterMessage {
         DiameterMessage { header, avps }
     }
 
+    /// Returns a reference to the AVP with the specified code,
+    /// if it exists within the message.
     pub fn get_avp(&self, code: u32) -> Option<&Avp> {
         self.avps.iter().find(|avp| avp.get_code() == code)
     }
 
+    /// Provides a reference to the vector containing all AVPs in the message.
     pub fn get_avps(&self) -> &Vec<Avp> {
         &self.avps
     }
 
+    /// Adds an AVP to the message.
     pub fn add_avp(&mut self, avp: Avp) {
         self.header.length += avp.get_length() + avp.get_padding() as u32;
         self.avps.push(avp);
     }
 
+    /// Returns the total length of the Diameter message, including the header and AVPs.
     pub fn get_length(&self) -> u32 {
         self.header.length
     }
 
+    /// Retrieves the command code from the message header.
     pub fn get_command_code(&self) -> CommandCode {
         self.header.code
     }
 
+    /// Retrieves the application ID from the message header.
     pub fn get_application_id(&self) -> ApplicationId {
         self.header.application_id
     }
 
+    /// Retrieves the flags from the message header.
     pub fn get_flags(&self) -> u8 {
         self.header.flags
     }
 
+    /// Retrieves the Hop-by-Hop Identifier from the message header.
     pub fn get_hop_by_hop_id(&self) -> u32 {
         self.header.hop_by_hop_id
     }
 
+    /// Retrieves the End-to-End Identifier from the message header.
     pub fn get_end_to_end_id(&self) -> u32 {
         self.header.end_to_end_id
     }
 
-    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterMessage, Box<dyn Error>> {
+    /// Decodes a Diameter message from the given byte slice.
     pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
@@ -168,6 +193,7 @@ impl DiameterMessage {
         Ok(DiameterMessage { header, avps })
     }
 
+    /// Encodes the Diameter message to the given writer.
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         self.header.encode_to(writer)?;
 
@@ -180,7 +206,7 @@ impl DiameterMessage {
 }
 
 impl DiameterHeader {
-    // pub fn decode_from<'a>(b: &'a [u8]) -> Result<DiameterHeader, Box<dyn Error>> {
+    /// Decodes a Diameter header from the given byte slice.
     pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Error> {
         let mut b = [0; HEADER_LENGTH as usize];
         reader.read_exact(&mut b)?;
@@ -218,6 +244,7 @@ impl DiameterHeader {
         })
     }
 
+    /// Encodes the Diameter header to the given writer.
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         // version
         writer.write_all(&[self.version])?;
@@ -247,12 +274,14 @@ impl DiameterHeader {
 }
 
 impl CommandCode {
+    /// Returns the command code as a u32.
     pub fn from_u32(code: u32) -> Option<CommandCode> {
         FromPrimitive::from_u32(code)
     }
 }
 
 impl ApplicationId {
+    /// Returns the application ID as a u32.
     pub fn from_u32(application_id: u32) -> Option<ApplicationId> {
         FromPrimitive::from_u32(application_id)
     }
