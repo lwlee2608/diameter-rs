@@ -1,4 +1,4 @@
-//! # Diameter Protocol
+//! # Diameter Protocol Message
 //!
 //! This crate provides functionalities for handling Diameter protocol messages as defined in RFC 6733.
 //!

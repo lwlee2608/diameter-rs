@@ -1,3 +1,4 @@
+//! Diameter Protocol Client
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use std::collections::HashMap;

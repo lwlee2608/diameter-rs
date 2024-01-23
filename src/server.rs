@@ -1,3 +1,4 @@
+//! Diameter Protocol Server
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use log::error;
