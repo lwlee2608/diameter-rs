@@ -1,14 +1,16 @@
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
-use serde_xml_rs::{from_str, to_string};
+use serde_xml_rs::from_str;
 use std::collections::BTreeMap;
 
 use crate::avp::AvpType;
 
+#[derive(Debug)]
 pub struct Definition {
     avps: BTreeMap<u32, AvpDefinition>,
 }
 
+#[derive(Debug)]
 pub struct AvpDefinition {
     code: u32,
     name: String,
@@ -109,19 +111,21 @@ impl Definition {
 
 // XML Parsing
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct Diameter {
     application: Application,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct Application {
     id: String,
     name: String,
     command: Command,
+    #[serde(rename = "avp", default)]
+    avps: Vec<Avp>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct Command {
     code: String,
     short: String,
@@ -130,18 +134,74 @@ struct Command {
     answer: CommandDetail,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct CommandDetail {
     #[serde(rename = "rule", default)]
     rules: Vec<Rule>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct Rule {
     avp: String,
     required: String,
     max: Option<String>,
     min: Option<String>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Avp {
+    name: String,
+    code: String,
+    must: String,
+    may: String,
+    #[serde(rename = "must-not")]
+    must_not: String,
+    #[serde(rename = "may-encrypt")]
+    may_encrypt: String,
+    data: Data,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Data {
+    #[serde(rename = "type")]
+    data_type: String,
+    #[serde(default)]
+    item: Vec<Item>,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+struct Item {
+    code: String,
+    name: String,
+}
+
+pub fn parse(xml: &str) -> Definition {
+    let dict: Diameter = from_str(xml).unwrap();
+
+    let mut definition = Definition::new();
+
+    dict.application.avps.iter().for_each(|avp| {
+        let avp_type = match avp.data.data_type.as_str() {
+            "UTF8String" => AvpType::UTF8String,
+            "OctetString" => AvpType::OctetString,
+            "Integer32" => AvpType::Integer32,
+            "Unsigned32" => AvpType::Unsigned32,
+            "Enumerated" => AvpType::Enumerated,
+            "Grouped" => AvpType::Grouped,
+            "Identity" => AvpType::Identity,
+            _ => panic!("Unknown AVP type: {}", avp.data.data_type),
+        };
+
+        let avp_definition = AvpDefinition {
+            code: avp.code.parse::<u32>().unwrap(),
+            name: avp.name.clone(),
+            avp_type,
+        };
+
+        definition.add_avp(avp_definition);
+    });
+
+    definition
 }
 
 #[cfg(test)]
@@ -186,11 +246,34 @@ mod tests {
                     <rule avp="Firmware-Revision" required="False" max="1"/>
                 </answer>
             </command>
+
+            <avp name="Acct-Interim-Interval" code="85" must="M" may="P" must-not="V" may-encrypt="Y">
+                <data type="Unsigned32"/>
+            </avp>
+
+            <avp name="Accounting-Realtime-Required" code="483" must="M" may="P" must-not="V" may-encrypt="Y">
+                <data type="Enumerated">
+                    <item code="1" name="DELIVER_AND_GRANT"/>
+                    <item code="2" name="GRANT_AND_STORE"/>
+                    <item code="3" name="GRANT_AND_LOSE"/>
+                </data>
+            </avp>
+
+            <avp name="Acct-Multi-Session-Id" code="50" must="M" may="P" must-not="V" may-encrypt="Y">
+                <data type="UTF8String"/>
+            </avp>
+
+            <avp name="Accounting-Record-Number" code="485" must="M" may="P" must-not="V" may-encrypt="Y">
+                <data type="Unsigned32"/>
+            </avp>
         </application>
     </diameter>
     "#;
 
-        let dict: Diameter = from_str(xml).unwrap();
-        println!("dict: {:?}", dict);
+        // let dict: Diameter = from_str(xml).unwrap();
+        // println!("dict: {:?}", dict);
+
+        let definition = parse(xml);
+        println!("definition: {:?}", definition);
     }
 }
