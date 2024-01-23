@@ -1,4 +1,6 @@
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
+use serde_xml_rs::{from_str, to_string};
 use std::collections::BTreeMap;
 
 use crate::avp::AvpType;
@@ -102,5 +104,93 @@ impl Definition {
             Some(avp) => Some(&avp.name),
             None => None,
         }
+    }
+}
+
+// XML Parsing
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Diameter {
+    application: Application,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Application {
+    id: String,
+    name: String,
+    command: Command,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Command {
+    code: String,
+    short: String,
+    name: String,
+    request: CommandDetail,
+    answer: CommandDetail,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct CommandDetail {
+    #[serde(rename = "rule", default)]
+    rules: Vec<Rule>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+struct Rule {
+    avp: String,
+    required: String,
+    max: Option<String>,
+    min: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_xml() {
+        let xml = r#"
+    <diameter>
+        <application id="0" name="Base">
+            <command code="257" short="CE" name="Capabilities-Exchange">
+                <request>
+                    <rule avp="Origin-Host" required="true" max="1"/>
+                    <rule avp="Origin-Realm" required="true" max="1"/>
+                    <rule avp="Host-IP-Address" required="true" min="1"/>
+                    <rule avp="Vendor-Id" required="true" max="1"/>
+                    <rule avp="Product-Name" required="true" max="1"/>
+                    <rule avp="Origin-State-Id" required="false" max="1"/>
+                    <rule avp="Supported-Vendor-Id" required="False"/>
+                    <rule avp="Auth-Application-Id" required="False"/>
+                    <rule avp="Inband-Security-Id" required="False"/>
+                    <rule avp="Acct-Application-Id" required="False"/>
+                    <rule avp="Vendor-Specific-Application-Id" required="False"/>
+                    <rule avp="Firmware-Revision" required="False" max="1"/>
+                </request>
+                <answer>
+                    <rule avp="Result-Code" required="true" max="1"/>
+                    <rule avp="Origin-Host" required="true" max="1"/>
+                    <rule avp="Origin-Realm" required="true" max="1"/>
+                    <rule avp="Host-IP-Address" required="true" min="1"/>
+                    <rule avp="Vendor-Id" required="true" max="1"/>
+                    <rule avp="Product-Name" required="true" max="1"/>
+                    <rule avp="Origin-State-Id" required="false" max="1"/>
+                    <rule avp="Error-Message" required="false" max="1"/>
+                    <rule avp="Failed-AVP" required="false" max="1"/>
+                    <rule avp="Supported-Vendor-Id" required="False"/>
+                    <rule avp="Auth-Application-Id" required="False"/>
+                    <rule avp="Inband-Security-Id" required="False"/>
+                    <rule avp="Acct-Application-Id" required="False"/>
+                    <rule avp="Vendor-Specific-Application-Id" required="False"/>
+                    <rule avp="Firmware-Revision" required="False" max="1"/>
+                </answer>
+            </command>
+        </application>
+    </diameter>
+    "#;
+
+        let dict: Diameter = from_str(xml).unwrap();
+        println!("dict: {:?}", dict);
     }
 }
