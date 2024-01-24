@@ -1,3 +1,67 @@
+//! Diameter Protocol Transport
+use crate::diameter::DiameterMessage;
+use crate::error::Error;
+use std::io::Cursor;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+
+/// Codec provides encoding and decoding functionality for Diameter messages
+/// over the TCP transport layer.
+pub struct Codec {}
+
+impl Codec {
+    /// Asynchronously decodes a DiameterMessage from a reader.
+    ///
+    /// Reads from `reader`, decodes according to Diameter protocol standards, and returns a DiameterMessage.
+    ///
+    /// # Arguments
+    /// * `reader` - A mutable reference to an object implementing `AsyncReadExt` and `Unpin`.
+    pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage, Error>
+    where
+        R: AsyncReadExt + Unpin,
+    {
+        let mut b = [0; 4];
+        reader.read_exact(&mut b).await?;
+        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+        // Limit to 1MB
+        if length as usize > 1024 * 1024 {
+            return Err(Error::ClientError("Message too large to read".into()));
+        }
+
+        // Read the rest of the message
+        let mut buffer = Vec::with_capacity(length as usize);
+        buffer.extend_from_slice(&b);
+        buffer.resize(length as usize, 0);
+        reader.read_exact(&mut buffer[4..]).await?;
+
+        // Decode Response
+        let mut cursor = Cursor::new(buffer);
+        DiameterMessage::decode_from(&mut cursor)
+    }
+
+    /// Asynchronously encodes a DiameterMessage and writes it to a writer.
+    ///
+    /// Encodes DiameterMessage into a byte stream and writes to `writer`.
+    ///
+    /// # Arguments
+    /// * `writer` - A mutable reference to an object implementing `AsyncWriteExt` and `Unpin`.
+    /// * `msg` - A reference to the `DiameterMessage` to encode.
+    pub async fn encode<W>(writer: &mut W, msg: &DiameterMessage) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        // Encode and send the response
+        let mut b = Vec::new();
+        msg.encode_to(&mut b)?;
+
+        // Send the response
+        writer.write_all(&b).await?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::avp;
@@ -10,6 +74,7 @@ mod tests {
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
     use crate::error::Error;
     use crate::server::DiameterServer;
+    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_diameter_transport() {
@@ -44,6 +109,7 @@ mod tests {
         let mut client = DiameterClient::new("localhost:3868");
         let _ = client.connect().await;
 
+        // Send Single CCR
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
@@ -63,5 +129,42 @@ mod tests {
         // Assert Result-Code
         let result_code = &cca.get_avp(268).unwrap();
         assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
+
+        // Send Multiple CCRs
+        let mut handles = vec![];
+        let n = 3;
+        let mut seq_no = 0;
+
+        for _ in 0..n {
+            seq_no = seq_no + 1;
+            let mut ccr = DiameterMessage::new(
+                CommandCode::CreditControl,
+                ApplicationId::CreditControl,
+                REQUEST_FLAG,
+                seq_no,
+                seq_no,
+            );
+            ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
+            ccr.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
+            ccr.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
+            ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
+            ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+            let mut request = client.request(ccr).await.unwrap();
+            let handle = tokio::spawn(async move {
+                let _ = request.send().await.unwrap();
+                let cca = request.response().await.unwrap();
+
+                println!("Response: {}", cca);
+
+                // Assert Result-Code
+                let result_code = &cca.get_avp(268).unwrap();
+                assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
     }
 }

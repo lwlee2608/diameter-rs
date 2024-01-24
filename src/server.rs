@@ -1,19 +1,13 @@
 //! Diameter Protocol Server
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
+use crate::transport::Codec;
 use log::error;
-use std::io::Cursor;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::{ReadHalf, WriteHalf};
 use tokio::net::TcpListener;
 
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
 /// This server listens for incoming Diameter messages, processes them, and sends back responses.
-///
-/// Fields:
-///     listener: The TCP listener that accepts incoming connections.
 pub struct DiameterServer {
     listener: TcpListener,
 }
@@ -67,7 +61,7 @@ impl DiameterServer {
                 let (mut reader, mut writer) = stream.split();
                 loop {
                     // Read and decode the request
-                    let req = match Self::read_and_decode_message(&mut reader).await {
+                    let req = match Codec::decode(&mut reader).await {
                         Ok(req) => req,
                         Err(e) => {
                             error!(
@@ -88,7 +82,7 @@ impl DiameterServer {
                     };
 
                     // Encode and send the response
-                    if let Err(e) = Self::encode_and_send_message(&mut writer, res).await {
+                    if let Err(e) = Codec::encode(&mut writer, &res).await {
                         error!(
                             "[{}] Failed to encode and send response; err = {:?}",
                             peer_addr, e
@@ -98,46 +92,6 @@ impl DiameterServer {
                 }
             });
         }
-    }
-
-    async fn read_and_decode_message<'a>(
-        reader: &mut ReadHalf<'a>,
-    ) -> Result<DiameterMessage, Error> {
-        // Read first 4 bytes to determine the length
-        let mut b = [0; 4];
-        reader.read_exact(&mut b).await?;
-        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
-
-        // Limit to 1MB
-        if length > 1024 * 1024 {
-            return Err(Error::ServerError("Message too large".into()));
-        }
-
-        // Read the rest of the message
-        let mut buf = vec![0; length as usize - 4];
-        reader.read_exact(&mut buf).await?;
-
-        let mut request = Vec::with_capacity(length as usize);
-        request.extend_from_slice(&b);
-        request.append(&mut buf);
-
-        // Decode the message
-        let mut cursor = Cursor::new(request);
-        DiameterMessage::decode_from(&mut cursor)
-    }
-
-    async fn encode_and_send_message<'a>(
-        writer: &mut WriteHalf<'a>,
-        msg: DiameterMessage,
-    ) -> Result<(), Error> {
-        // Encode and send the response
-        let mut response = Vec::new();
-        msg.encode_to(&mut response)?;
-
-        // Send the response
-        writer.write_all(&response).await?;
-
-        Ok(())
     }
 }
 

@@ -1,12 +1,11 @@
 //! Diameter Protocol Client
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
+use crate::transport::Codec;
 use std::collections::HashMap;
-use std::io::Cursor;
+use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -60,12 +59,13 @@ impl DiameterClient {
 
         let (mut reader, writer) = stream.into_split();
         let writer = Arc::new(Mutex::new(writer));
+
         self.writer = Some(writer);
 
         let msg_caches = Arc::clone(&self.msg_caches);
         tokio::spawn(async move {
             loop {
-                match Self::read_and_decode_message(&mut reader).await {
+                match Codec::decode(&mut reader).await {
                     Ok(res) => {
                         if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
                             log::error!("Failed to process response; error: {:?}", e);
@@ -108,28 +108,6 @@ impl DiameterClient {
             }
         };
         Ok(())
-    }
-
-    async fn read_and_decode_message(reader: &mut OwnedReadHalf) -> Result<DiameterMessage, Error> {
-        let mut b = [0; 4];
-        reader.read_exact(&mut b).await?;
-        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
-
-        // Limit to 1MB
-        if length as usize > 1024 * 1024 {
-            return Err(Error::ClientError("Message too large to read".into()));
-        }
-
-        // Read the rest of the message
-        let mut buffer = Vec::with_capacity(length as usize);
-        buffer.extend_from_slice(&b);
-        buffer.resize(length as usize, 0);
-        reader.read_exact(&mut buffer[4..]).await?;
-
-        // Decode Response
-        let mut cursor = Cursor::new(buffer);
-        let res = DiameterMessage::decode_from(&mut cursor)?;
-        Ok(res)
     }
 
     /// Initiates a Diameter request.
@@ -227,13 +205,8 @@ impl DiameterRequest {
     /// Returns:
     ///     A `Result` indicating the success or failure of sending the request.
     pub async fn send(&mut self) -> Result<(), Error> {
-        let mut encoded = Vec::new();
-        self.request.encode_to(&mut encoded)?;
-
         let mut writer = self.writer.lock().await;
-        writer.write_all(&encoded).await?;
-
-        Ok(())
+        Codec::encode(&mut writer.deref_mut(), &self.request).await
     }
 
     /// Waits for and returns the response to the request.
