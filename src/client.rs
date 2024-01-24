@@ -2,14 +2,10 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use crate::transport::Codec;
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -209,17 +205,8 @@ impl DiameterRequest {
     /// Returns:
     ///     A `Result` indicating the success or failure of sending the request.
     pub async fn send(&mut self) -> Result<(), Error> {
-        let mut encoded = Vec::new();
-        self.request.encode_to(&mut encoded)?;
-        //
         let mut writer = self.writer.lock().await;
-        writer.write_all(&encoded).await?;
-
-        // let request = &self.request;
-        // let mut writer = self.writer.lock().await.borrow_mut();
-        // Codec::encode(&mut writer, &self.request).await?;
-
-        Ok(())
+        Codec::encode(&mut writer.deref_mut(), &self.request).await
     }
 
     /// Waits for and returns the response to the request.

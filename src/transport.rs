@@ -1,16 +1,21 @@
+//! Diameter Protocol Transport
 use crate::diameter::DiameterMessage;
 use crate::error::Error;
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
+/// Codec provides encoding and decoding functionality for Diameter messages
+/// over the TCP transport layer.
 pub struct Codec {}
 
 impl Codec {
-    pub fn new() -> Codec {
-        Codec {}
-    }
-
+    /// Asynchronously decodes a DiameterMessage from a reader.
+    ///
+    /// Reads from `reader`, decodes according to Diameter protocol standards, and returns a DiameterMessage.
+    ///
+    /// # Arguments
+    /// * `reader` - A mutable reference to an object implementing `AsyncReadExt` and `Unpin`.
     pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage, Error>
     where
         R: AsyncReadExt + Unpin,
@@ -35,6 +40,13 @@ impl Codec {
         DiameterMessage::decode_from(&mut cursor)
     }
 
+    /// Asynchronously encodes a DiameterMessage and writes it to a writer.
+    ///
+    /// Encodes DiameterMessage into a byte stream and writes to `writer`.
+    ///
+    /// # Arguments
+    /// * `writer` - A mutable reference to an object implementing `AsyncWriteExt` and `Unpin`.
+    /// * `msg` - A reference to the `DiameterMessage` to encode.
     pub async fn encode<W>(writer: &mut W, msg: &DiameterMessage) -> Result<(), Error>
     where
         W: AsyncWriteExt + Unpin,
