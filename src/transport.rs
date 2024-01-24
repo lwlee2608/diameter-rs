@@ -74,7 +74,6 @@ mod tests {
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
     use crate::error::Error;
     use crate::server::DiameterServer;
-    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_diameter_transport() {
