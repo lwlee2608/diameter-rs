@@ -130,17 +130,19 @@ mod tests {
         let result_code = &cca.get_avp(268).unwrap();
         assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
 
+        // Send Multiple CCRs
         let mut handles = vec![];
         let n = 3;
-        for _ in 0..n {
-            sleep(Duration::from_micros(250)).await;
+        let mut seq_no = 0;
 
+        for _ in 0..n {
+            seq_no = seq_no + 1;
             let mut ccr = DiameterMessage::new(
                 CommandCode::CreditControl,
                 ApplicationId::CreditControl,
                 REQUEST_FLAG,
-                1123158611,
-                3102381851,
+                seq_no,
+                seq_no,
             );
             ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
             ccr.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
