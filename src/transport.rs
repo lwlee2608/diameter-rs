@@ -1,3 +1,55 @@
+use crate::diameter::DiameterMessage;
+use crate::error::Error;
+use std::io::Cursor;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
+
+pub struct Codec {}
+
+impl Codec {
+    pub fn new() -> Codec {
+        Codec {}
+    }
+
+    pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage, Error>
+    where
+        R: AsyncReadExt + Unpin,
+    {
+        let mut b = [0; 4];
+        reader.read_exact(&mut b).await?;
+        let length = u32::from_be_bytes([0, b[1], b[2], b[3]]);
+
+        // Limit to 1MB
+        if length as usize > 1024 * 1024 {
+            return Err(Error::ClientError("Message too large to read".into()));
+        }
+
+        // Read the rest of the message
+        let mut buffer = Vec::with_capacity(length as usize);
+        buffer.extend_from_slice(&b);
+        buffer.resize(length as usize, 0);
+        reader.read_exact(&mut buffer[4..]).await?;
+
+        // Decode Response
+        let mut cursor = Cursor::new(buffer);
+        DiameterMessage::decode_from(&mut cursor)
+    }
+
+    pub async fn encode<W>(writer: &mut W, msg: &DiameterMessage) -> Result<(), Error>
+    where
+        W: AsyncWriteExt + Unpin,
+    {
+        // Encode and send the response
+        let mut b = Vec::new();
+        msg.encode_to(&mut b)?;
+
+        // Send the response
+        writer.write_all(&b).await?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::avp;
