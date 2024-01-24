@@ -74,6 +74,7 @@ mod tests {
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
     use crate::error::Error;
     use crate::server::DiameterServer;
+    use tokio::time::{sleep, Duration};
 
     #[tokio::test]
     async fn test_diameter_transport() {
@@ -108,6 +109,7 @@ mod tests {
         let mut client = DiameterClient::new("localhost:3868");
         let _ = client.connect().await;
 
+        // Send Single CCR
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
@@ -127,5 +129,40 @@ mod tests {
         // Assert Result-Code
         let result_code = &cca.get_avp(268).unwrap();
         assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
+
+        let mut handles = vec![];
+        let n = 3;
+        for _ in 0..n {
+            sleep(Duration::from_micros(250)).await;
+
+            let mut ccr = DiameterMessage::new(
+                CommandCode::CreditControl,
+                ApplicationId::CreditControl,
+                REQUEST_FLAG,
+                1123158611,
+                3102381851,
+            );
+            ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
+            ccr.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
+            ccr.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
+            ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
+            ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+            let mut request = client.request(ccr).await.unwrap();
+            let handle = tokio::spawn(async move {
+                let _ = request.send().await.unwrap();
+                let cca = request.response().await.unwrap();
+
+                println!("Response: {}", cca);
+
+                // Assert Result-Code
+                let result_code = &cca.get_avp(268).unwrap();
+                assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.unwrap();
+        }
     }
 }
