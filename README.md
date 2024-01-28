@@ -25,7 +25,7 @@ use diameter::avp::enumerated::EnumeratedAvp;
 use diameter::avp::identity::IdentityAvp;
 use diameter::avp::unsigned32::Unsigned32Avp;
 use diameter::avp::utf8string::UTF8StringAvp;
-use diameter::error::Error;
+use diameter::error::Result;
 use diameter::server::DiameterServer;
 use diameter::diameter::{DiameterMessage, REQUEST_FLAG};
 
@@ -35,7 +35,7 @@ async fn main() {
     let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
 
     // Asynchronously handle incoming requests to the server
-    server.listen(|req| -> Result<DiameterMessage, Error> {
+    server.listen(|req| -> Result<DiameterMessage> {
         println!("Received request: {}", req);
 
         // Create a response message based on the received request
