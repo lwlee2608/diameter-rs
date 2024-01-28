@@ -1,6 +1,6 @@
 //! Diameter Protocol Server
 use crate::diameter::DiameterMessage;
-use crate::error::Error;
+use crate::error::Result;
 use crate::transport::Codec;
 use log::error;
 use tokio::net::TcpListener;
@@ -22,7 +22,7 @@ impl DiameterServer {
     ///
     /// Returns:
     ///     A `Result` containing the new `DiameterServer` instance or an `Error` if the binding fails.
-    pub async fn new(addr: &str) -> Result<DiameterServer, Error> {
+    pub async fn new(addr: &str) -> Result<DiameterServer> {
         let listener = TcpListener::bind(addr).await?;
         Ok(DiameterServer { listener })
     }
@@ -44,9 +44,9 @@ impl DiameterServer {
     /// Returns:
     ///     A `Result` indicating the success or failure of the operation. Errors could occur
     ///     during the acceptance of new connections or during the message handling process.
-    pub async fn listen<F>(&mut self, handler: F) -> Result<(), Error>
+    pub async fn listen<F>(&mut self, handler: F) -> Result<()>
     where
-        F: Fn(DiameterMessage) -> Result<DiameterMessage, Error> + Clone + Send + 'static,
+        F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
     {
         loop {
             let (mut stream, _) = self.listener.accept().await?;
@@ -111,7 +111,7 @@ mod tests {
     async fn test_server() {
         let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
         server
-            .listen(|_req| -> Result<DiameterMessage, Error> {
+            .listen(|_req| -> Result<DiameterMessage> {
                 // Return Dummy Value
                 let mut res = DiameterMessage::new(
                     CommandCode::CreditControl,

@@ -1,6 +1,6 @@
 //! Diameter Protocol Client
 use crate::diameter::DiameterMessage;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use crate::transport::Codec;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -54,7 +54,7 @@ impl DiameterClient {
     ///
     /// Returns:
     ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection process.
-    pub async fn connect(&mut self) -> Result<(), Error> {
+    pub async fn connect(&mut self) -> Result<()> {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
         let (mut reader, writer) = stream.into_split();
@@ -86,7 +86,7 @@ impl DiameterClient {
     async fn process_decoded_msg(
         msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
         res: DiameterMessage,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let hop_by_hop = res.get_hop_by_hop_id();
 
         let sender_opt = {
@@ -119,7 +119,7 @@ impl DiameterClient {
     ///
     /// Returns:
     ///     A `Result` containing a `DiameterRequest` or an error if the client is not connected.
-    pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest, Error> {
+    pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest> {
         if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
@@ -143,7 +143,7 @@ impl DiameterClient {
     ///
     /// Returns:
     ///     A `Result` containing the response `DiameterMessage` or an error.
-    pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage, Error> {
+    pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage> {
         let mut request = self.request(req).await?;
         let _ = request.send().await?;
         let response = request.response().await?;
@@ -204,7 +204,7 @@ impl DiameterRequest {
     ///
     /// Returns:
     ///     A `Result` indicating the success or failure of sending the request.
-    pub async fn send(&mut self) -> Result<(), Error> {
+    pub async fn send(&mut self) -> Result<()> {
         let mut writer = self.writer.lock().await;
         Codec::encode(&mut writer.deref_mut(), &self.request).await
     }
@@ -215,7 +215,7 @@ impl DiameterRequest {
     ///
     /// Returns:
     ///     A `Result` containing the response `DiameterMessage` or an error if the response cannot be received.
-    pub async fn response(&self) -> Result<DiameterMessage, Error> {
+    pub async fn response(&self) -> Result<DiameterMessage> {
         let rx = self
             .receiver
             .lock()

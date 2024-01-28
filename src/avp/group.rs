@@ -1,5 +1,5 @@
 use crate::avp::Avp;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
@@ -16,7 +16,7 @@ impl GroupAvp {
         &self.0
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<GroupAvp, Error> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<GroupAvp> {
         let mut avps = Vec::new();
 
         let mut offset = 0;
@@ -37,7 +37,7 @@ impl GroupAvp {
         Ok(GroupAvp(avps))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         for avp in &self.0 {
             avp.encode_to(writer)?;
         }

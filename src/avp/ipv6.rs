@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::Result;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -12,7 +12,7 @@ impl IPv6Avp {
         IPv6Avp(value)
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<IPv6Avp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<IPv6Avp> {
         let mut b = [0; 16];
         reader.read_exact(&mut b)?;
 
@@ -29,7 +29,7 @@ impl IPv6Avp {
         Ok(IPv6Avp(ip))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(&self.0.octets())?;
         Ok(())
     }

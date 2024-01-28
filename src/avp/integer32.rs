@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::Result;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -15,14 +15,14 @@ impl Integer32Avp {
         self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Integer32Avp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Integer32Avp> {
         let mut b = [0; 4];
         reader.read_exact(&mut b)?;
         let num = i32::from_be_bytes(b);
         Ok(Integer32Avp(num))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(&self.0.to_be_bytes())?;
         Ok(())
     }

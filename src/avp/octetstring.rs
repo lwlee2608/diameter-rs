@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::Result;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -15,13 +15,13 @@ impl OctetStringAvp {
         &self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<OctetStringAvp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<OctetStringAvp> {
         let mut b = vec![0u8; len];
         reader.read_exact(&mut b)?;
         Ok(OctetStringAvp(b))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(&self.0)?;
         Ok(())
     }

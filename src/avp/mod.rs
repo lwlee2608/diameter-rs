@@ -45,7 +45,7 @@ pub mod uri;
 pub mod utf8string;
 
 use crate::dictionary;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use core::fmt;
 use std::io::Read;
 use std::io::Seek;
@@ -300,7 +300,7 @@ impl From<GroupAvp> for AvpValue {
 }
 
 impl AvpHeader {
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<AvpHeader> {
         let mut b = [0; 8];
         reader.read_exact(&mut b)?;
 
@@ -330,7 +330,7 @@ impl AvpHeader {
         })
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         // Code
         writer.write_all(&self.code.to_be_bytes())?;
 
@@ -411,7 +411,7 @@ impl Avp {
         &self.value
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp, Error> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp> {
         let header = AvpHeader::decode_from(reader)?;
 
         let header_length = if header.flags.vendor { 12 } else { 8 };
@@ -470,7 +470,7 @@ impl Avp {
         });
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         self.header.encode_to(writer)?;
 
         let _ = match &self.value {

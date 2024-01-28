@@ -1,9 +1,8 @@
 use std::fmt;
+use std::result::Result as StdResult;
 use std::sync::{MutexGuard, PoisonError};
 
-#[derive(Debug)]
-pub enum CLientError {}
-
+/// Error type returned by `diameter` methods.
 #[derive(Debug)]
 pub enum Error {
     DecodeError(String),
@@ -15,6 +14,9 @@ pub enum Error {
     TryFromSliceError(std::array::TryFromSliceError),
     LockError(String),
 }
+
+/// `Result` type used by `diameter`'s API.
+pub type Result<T> = StdResult<T, Error>;
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

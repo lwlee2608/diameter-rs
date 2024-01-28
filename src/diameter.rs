@@ -32,7 +32,7 @@
 
 use crate::avp::Avp;
 use crate::dictionary;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::fmt;
@@ -170,7 +170,7 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage, Error> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
 
@@ -194,7 +194,7 @@ impl DiameterMessage {
     }
 
     /// Encodes the Diameter message to the given writer.
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         self.header.encode_to(writer)?;
 
         for avp in &self.avps {
@@ -207,7 +207,7 @@ impl DiameterMessage {
 
 impl DiameterHeader {
     /// Decodes a Diameter header from the given byte slice.
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<DiameterHeader> {
         let mut b = [0; HEADER_LENGTH as usize];
         reader.read_exact(&mut b)?;
 
@@ -245,7 +245,7 @@ impl DiameterHeader {
     }
 
     /// Encodes the Diameter header to the given writer.
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         // version
         writer.write_all(&[self.version])?;
 

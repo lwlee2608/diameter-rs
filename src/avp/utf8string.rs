@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{Error, Result};
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -15,7 +15,7 @@ impl UTF8StringAvp {
         &self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<UTF8StringAvp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<UTF8StringAvp> {
         let mut b = vec![0u8; len];
         reader.read_exact(&mut b)?;
 
@@ -24,7 +24,7 @@ impl UTF8StringAvp {
         Ok(UTF8StringAvp(s))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(self.0.as_bytes())?;
         Ok(())
     }

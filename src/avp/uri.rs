@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::Result;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
@@ -17,12 +17,12 @@ impl DiameterURI {
         self.0.value()
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterURI, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterURI> {
         let avp = OctetStringAvp::decode_from(reader, len)?;
         Ok(DiameterURI(avp))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         self.0.encode_to(writer)?;
         Ok(())
     }

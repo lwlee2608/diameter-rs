@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{Error, Result};
 use chrono::DateTime;
 use chrono::TimeZone;
 use chrono::Utc;
@@ -20,7 +20,7 @@ impl TimeAvp {
         &self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<TimeAvp, Error> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<TimeAvp> {
         let mut b = [0; 4];
         reader.read_exact(&mut b)?;
 
@@ -34,7 +34,7 @@ impl TimeAvp {
         Ok(TimeAvp(timestamp))
     }
 
-    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         let unix_timestamp = self.0.timestamp();
         let diameter_timestamp = unix_timestamp + RFC868_OFFSET as i64;
         if diameter_timestamp > u32::MAX as i64 {

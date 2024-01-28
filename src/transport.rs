@@ -1,6 +1,6 @@
 //! Diameter Protocol Transport
 use crate::diameter::DiameterMessage;
-use crate::error::Error;
+use crate::error::{Error, Result};
 use std::io::Cursor;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -16,7 +16,7 @@ impl Codec {
     ///
     /// # Arguments
     /// * `reader` - A mutable reference to an object implementing `AsyncReadExt` and `Unpin`.
-    pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage, Error>
+    pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage>
     where
         R: AsyncReadExt + Unpin,
     {
@@ -47,7 +47,7 @@ impl Codec {
     /// # Arguments
     /// * `writer` - A mutable reference to an object implementing `AsyncWriteExt` and `Unpin`.
     /// * `msg` - A reference to the `DiameterMessage` to encode.
-    pub async fn encode<W>(writer: &mut W, msg: &DiameterMessage) -> Result<(), Error>
+    pub async fn encode<W>(writer: &mut W, msg: &DiameterMessage) -> Result<()>
     where
         W: AsyncWriteExt + Unpin,
     {
@@ -72,7 +72,7 @@ mod tests {
     use crate::avp::Avp;
     use crate::client::DiameterClient;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
-    use crate::error::Error;
+    use crate::error::Result;
     use crate::server::DiameterServer;
 
     #[tokio::test]
@@ -82,7 +82,7 @@ mod tests {
 
         tokio::spawn(async move {
             server
-                .listen(|req| -> Result<DiameterMessage, Error> {
+                .listen(|req| -> Result<DiameterMessage> {
                     println!("Request : {}", req);
 
                     let mut res = DiameterMessage::new(
