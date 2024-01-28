@@ -21,13 +21,14 @@ diameter-rs = "^0.1"
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
-use diameter::avp::enumerated::EnumeratedAvp;
-use diameter::avp::identity::IdentityAvp;
-use diameter::avp::unsigned32::Unsigned32Avp;
-use diameter::avp::utf8string::UTF8StringAvp;
-use diameter::error::Result;
-use diameter::server::DiameterServer;
-use diameter::diameter::{DiameterMessage, REQUEST_FLAG};
+use diameter::avp::EnumeratedAvp;
+use diameter::avp::IdentityAvp;
+use diameter::avp::Unsigned32Avp;
+use diameter::avp::UTF8StringAvp;
+use diameter::Result;
+use diameter::DiameterServer;
+use diameter::DiameterMessage;
+use diameter::REQUEST_FLAG;
 
 #[tokio::main]
 async fn main() {
@@ -66,12 +67,12 @@ async fn main() {
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
-use diameter::avp::identity::IdentityAvp;
-use diameter::avp::enumerated::EnumeratedAvp;
-use diameter::avp::unsigned32::Unsigned32Avp;
-use diameter::avp::utf8string::UTF8StringAvp;
-use diameter::client::DiameterClient;
-use diameter::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
+use diameter::avp::IdentityAvp;
+use diameter::avp::EnumeratedAvp;
+use diameter::avp::Unsigned32Avp;
+use diameter::avp::UTF8StringAvp;
+use diameter::DiameterClient;
+use diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
 
 #[tokio::main]
 async fn main() {
