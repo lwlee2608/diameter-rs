@@ -69,9 +69,15 @@ pub use crate::avp::unsigned64::Unsigned64;
 pub use crate::avp::uri::DiameterURI;
 pub use crate::avp::utf8string::UTF8String;
 
-const VENDOR_FLAG: u8 = 0x80;
-const MANDATORY_FLAG: u8 = 0x40;
-const PRIVATE_FLAG: u8 = 0x20;
+pub mod flags {
+    pub const V: u8 = 0x80;
+    pub const M: u8 = 0x40;
+    pub const P: u8 = 0x20;
+}
+
+// const VENDOR_FLAG: u8 = 0x80;
+// const flags::M: u8 = 0x40;
+// const flags::P: u8 = 0x20;
 
 #[derive(Debug)]
 pub struct Avp {
@@ -307,9 +313,9 @@ impl AvpHeader {
         let code = u32::from_be_bytes([b[0], b[1], b[2], b[3]]);
 
         let flags = AvpFlags {
-            vendor: (b[4] & VENDOR_FLAG) != 0,
-            mandatory: (b[4] & MANDATORY_FLAG) != 0,
-            private: (b[4] & PRIVATE_FLAG) != 0,
+            vendor: (b[4] & flags::V) != 0,
+            mandatory: (b[4] & flags::M) != 0,
+            private: (b[4] & flags::P) != 0,
         };
 
         let length = u32::from_be_bytes([0, b[5], b[6], b[7]]);
@@ -337,13 +343,13 @@ impl AvpHeader {
         // Flags
         let mut flags: u8 = 0;
         if self.flags.vendor {
-            flags |= VENDOR_FLAG;
+            flags |= flags::V;
         }
         if self.flags.mandatory {
-            flags |= MANDATORY_FLAG;
+            flags |= flags::M;
         }
         if self.flags.private {
-            flags |= PRIVATE_FLAG;
+            flags |= flags::P;
         }
         writer.write_all(&[flags])?;
 
@@ -361,21 +367,15 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn new(
-        code: u32,
-        vendor_id: Option<u32>,
-        value: AvpValue,
-        mflag: bool,
-        pflag: bool,
-    ) -> Avp {
+    pub fn new(code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) -> Avp {
         let header_length = if vendor_id.is_some() { 12 } else { 8 };
         let padding = Avp::pad_to_32_bits(value.length());
         let header = AvpHeader {
             code,
             flags: AvpFlags {
                 vendor: if vendor_id.is_some() { true } else { false },
-                mandatory: mflag,
-                private: pflag,
+                mandatory: (flags & flags::M) != 0,
+                private: (flags & flags::P) != 0,
             },
             length: header_length + value.length(),
             vendor_id,
@@ -619,14 +619,8 @@ impl Avp {
 
 #[macro_export]
 macro_rules! avp {
-    ($code:expr, $vendor_id:expr, $value:expr $(,)?) => {
-        Avp::new($code, $vendor_id, $value.into(), false, false)
-    };
-    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr $(,)?) => {
-        Avp::new($code, $vendor_id, $value.into(), $mflag, false)
-    };
-    ($code:expr, $vendor_id:expr, $value:expr, $mflag:expr, $pflag:expr $(,)?) => {
-        Avp::new($code, $vendor_id, $value.into(), $mflag, $pflag)
+    ($code:expr, $vendor_id:expr, $flags:expr, $value:expr $(,)?) => {
+        Avp::new($code, $vendor_id, $flags, $value.into())
     };
 }
 

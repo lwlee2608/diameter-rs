@@ -74,8 +74,8 @@ mod tests {
     #[test]
     fn test_encode_decode() {
         let avp = Grouped::new(vec![
-            avp!(416, None, Enumerated::new(1)),
-            avp!(415, None, Unsigned32::new(1000)),
+            avp!(416, None, 0, Enumerated::new(1)),
+            avp!(415, None, 0, Unsigned32::new(1000)),
         ]);
         assert_eq!(avp.avps().len(), 2);
         let mut encoded = Vec::new();

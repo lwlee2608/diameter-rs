@@ -2,18 +2,18 @@
 
 extern crate test;
 use diameter::avp;
+use diameter::avp::flags::M;
 use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
+use diameter::flags::{P, R};
 use diameter::ApplicationId;
 use diameter::CommandCode;
 use diameter::DiameterHeader;
 use diameter::DiameterMessage;
-use diameter::PROXYABLE_FLAG;
-use diameter::REQUEST_FLAG;
 use std::io::Cursor;
 use test::black_box;
 use test::Bencher;
@@ -117,27 +117,27 @@ fn cca_message() -> DiameterMessage {
     let mut message = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
-        REQUEST_FLAG | PROXYABLE_FLAG,
+        R | P,
         1123158610,
         3102381851,
     );
 
-    message.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-    message.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-    message.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
-    message.add_avp(avp!(268, None, Unsigned32::new(2001), true));
-    message.add_avp(avp!(416, None, Enumerated::new(1), true));
-    message.add_avp(avp!(415, None, Unsigned32::new(1000), true));
+    message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    message.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    message.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    message.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+    message.add_avp(avp!(416, None, M, Enumerated::new(1)));
+    message.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
     message.add_avp(avp!(
         873,
         Some(10415),
+        M,
         Grouped::new(vec![avp!(
             874,
             Some(10415),
-            Grouped::new(vec![avp!(30, None, UTF8String::new("10999"), true)]),
-            true,
+            M,
+            Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
         )]),
-        true,
     ));
     message
 }

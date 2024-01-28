@@ -25,10 +25,11 @@ use diameter::avp::Enumerated;
 use diameter::avp::Identity;
 use diameter::avp::Unsigned32;
 use diameter::avp::UTF8String;
+use diameter::avp::flags::M;
 use diameter::Result;
 use diameter::DiameterServer;
 use diameter::DiameterMessage;
-use diameter::REQUEST_FLAG;
+use diameter::flags::R;
 
 #[tokio::main]
 async fn main() {
@@ -43,18 +44,18 @@ async fn main() {
         let mut res = DiameterMessage::new(
             req.get_command_code(),
             req.get_application_id(),
-            req.get_flags() ^ REQUEST_FLAG,
+            req.get_flags() ^ R,
             req.get_hop_by_hop_id(),
             req.get_end_to_end_id(),
         );
 
         // Add various Attribute-Value Pairs (AVPs) to the response
-        res.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-        res.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-        res.add_avp(avp!(263, None, UTF8String::new("ses;123458890"), true));
-        res.add_avp(avp!(416, None, Enumerated::new(1), true));
-        res.add_avp(avp!(415, None, Unsigned32::new(1000), true));
-        res.add_avp(avp!(268, None, Unsigned32::new(2001), true));
+        res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+        res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+        res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
+        res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+        res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+        res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
 
         // Return the response
         Ok(res)
@@ -71,8 +72,10 @@ use diameter::avp::Identity;
 use diameter::avp::Enumerated;
 use diameter::avp::Unsigned32;
 use diameter::avp::UTF8String;
+use diameter::avp::flags::M;
 use diameter::DiameterClient;
-use diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
+use diameter::{ApplicationId, CommandCode, DiameterMessage};
+use diameter::flags::R;
 
 #[tokio::main]
 async fn main() {
@@ -84,15 +87,15 @@ async fn main() {
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
-        REQUEST_FLAG,
+        R,
         1123158611,
         3102381851,
     );
-    ccr.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-    ccr.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-    ccr.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
-    ccr.add_avp(avp!(416, None, Enumerated::new(1), true));
-    ccr.add_avp(avp!(415, None, Unsigned32::new(1000), true));
+    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
+    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
 
     // Send the CCR message to the server and wait for a response
     let cca = client.send_message(ccr).await.unwrap();

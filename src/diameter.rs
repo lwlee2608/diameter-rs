@@ -41,10 +41,13 @@ use std::io::Seek;
 use std::io::Write;
 
 pub const HEADER_LENGTH: u32 = 20;
-pub const REQUEST_FLAG: u8 = 0x80;
-pub const PROXYABLE_FLAG: u8 = 0x40;
-pub const ERROR_FLAG: u8 = 0x20;
-pub const RETRANSMIT_FLAG: u8 = 0x10;
+
+pub mod flags {
+    pub const R: u8 = 0x80;
+    pub const P: u8 = 0x40;
+    pub const E: u8 = 0x20;
+    pub const T: u8 = 0x10;
+}
 
 /// Represents a Diameter message as defined in RFC 6733.
 ///
@@ -306,22 +309,22 @@ impl fmt::Display for DiameterMessage {
 
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let request_flag = if self.flags & REQUEST_FLAG != 0 {
+        let request_flag = if self.flags & flags::R != 0 {
             "Request"
         } else {
             "Answer"
         };
-        let error_flag = if self.flags & ERROR_FLAG != 0 {
+        let error_flag = if self.flags & flags::E != 0 {
             "Error"
         } else {
             ""
         };
-        let proxyable_flag = if self.flags & PROXYABLE_FLAG != 0 {
+        let proxyable_flag = if self.flags & flags::P != 0 {
             "Proxyable"
         } else {
             ""
         };
-        let retransmit_flag = if self.flags & RETRANSMIT_FLAG != 0 {
+        let retransmit_flag = if self.flags & flags::T != 0 {
             "Retransmit"
         } else {
             ""
@@ -395,6 +398,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 mod tests {
     use crate::avp;
     use crate::avp::enumerated::Enumerated;
+    use crate::avp::flags::M;
     use crate::avp::group::Grouped;
     use crate::avp::identity::Identity;
     use crate::avp::unsigned32::Unsigned32;
@@ -420,7 +424,7 @@ mod tests {
 
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
-        assert_eq!(header.flags, REQUEST_FLAG);
+        assert_eq!(header.flags, flags::R);
         assert_eq!(header.code, CommandCode::CreditControl);
         assert_eq!(header.application_id, ApplicationId::CreditControl);
         assert_eq!(header.hop_by_hop_id, 3);
@@ -484,31 +488,32 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_diameter_struct() {
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            REQUEST_FLAG | PROXYABLE_FLAG,
+            flags::R | flags::P,
             1123158610,
             3102381851,
         );
 
-        message.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-        message.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-        message.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
-        message.add_avp(avp!(268, None, Unsigned32::new(2001), true));
-        message.add_avp(avp!(416, None, Enumerated::new(1), true));
-        message.add_avp(avp!(415, None, Unsigned32::new(1000), true));
+        message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+        message.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+        message.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+        message.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+        message.add_avp(avp!(416, None, M, Enumerated::new(1)));
+        message.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
         message.add_avp(avp!(
             873,
             Some(10415),
+            M,
             Grouped::new(vec![avp!(
                 874,
                 Some(10415),
-                Grouped::new(vec![avp!(30, None, UTF8String::new("10999"), true)]),
-                true,
+                M,
+                Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
             )]),
-            true,
         ));
 
         // encode

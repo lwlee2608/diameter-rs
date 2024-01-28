@@ -100,6 +100,7 @@ mod tests {
     use super::*;
     use crate::avp;
     use crate::avp::enumerated::Enumerated;
+    use crate::avp::flags::M;
     use crate::avp::identity::Identity;
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
@@ -120,12 +121,12 @@ mod tests {
                     1123158610,
                     3102381851,
                 );
-                res.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-                res.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-                res.add_avp(avp!(263, None, UTF8String::new("ses;12345889"), true));
-                res.add_avp(avp!(416, None, Enumerated::new(1), true));
-                res.add_avp(avp!(415, None, Unsigned32::new(1000), true));
-                res.add_avp(avp!(268, None, Unsigned32::new(2001), true));
+                res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+                res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+                res.add_avp(avp!(263, None, M, UTF8String::new("ses;12345889")));
+                res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+                res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+                res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
                 Ok(res)
             })
             .await

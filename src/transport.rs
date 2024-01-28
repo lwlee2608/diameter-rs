@@ -66,13 +66,15 @@ impl Codec {
 mod tests {
     use crate::avp;
     use crate::avp::enumerated::Enumerated;
+    use crate::avp::flags::M;
     use crate::avp::identity::Identity;
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
     use crate::avp::Avp;
     use crate::avp::Unsigned64;
     use crate::client::DiameterClient;
-    use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
+    use crate::diameter::flags::R;
+    use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::error::Result;
     use crate::server::DiameterServer;
 
@@ -89,16 +91,16 @@ mod tests {
                     let mut res = DiameterMessage::new(
                         req.get_command_code(),
                         req.get_application_id(),
-                        req.get_flags() ^ REQUEST_FLAG,
+                        req.get_flags() ^ R,
                         req.get_hop_by_hop_id(),
                         req.get_end_to_end_id(),
                     );
-                    res.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-                    res.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-                    res.add_avp(avp!(263, None, UTF8String::new("ses;123458890"), true));
-                    res.add_avp(avp!(416, None, Enumerated::new(1), true));
-                    res.add_avp(avp!(415, None, Unsigned32::new(1000), true));
-                    res.add_avp(avp!(268, None, Unsigned32::new(2001), true));
+                    res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+                    res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+                    res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
+                    res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+                    res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+                    res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
                     Ok(res)
                 })
                 .await
@@ -113,15 +115,15 @@ mod tests {
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            REQUEST_FLAG,
+            R,
             1123158611,
             3102381851,
         );
-        ccr.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-        ccr.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-        ccr.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
-        ccr.add_avp(avp!(416, None, Enumerated::new(1), true));
-        ccr.add_avp(avp!(415, None, Unsigned32::new(1000), true));
+        ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+        ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+        ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+        ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
+        ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
         let cca = client.send_message(ccr).await.unwrap();
 
         println!("Response: {}", cca);
@@ -140,15 +142,15 @@ mod tests {
             let mut ccr = DiameterMessage::new(
                 CommandCode::CreditControl,
                 ApplicationId::CreditControl,
-                REQUEST_FLAG,
+                R,
                 seq_no,
                 seq_no,
             );
-            ccr.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
-            ccr.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
-            ccr.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
-            ccr.add_avp(avp!(416, None, Enumerated::new(1), true));
-            ccr.add_avp(avp!(415, None, Unsigned64::new(1000), true));
+            ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+            ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+            ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+            ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
+            ccr.add_avp(avp!(415, None, M, Unsigned64::new(1000)));
             let mut request = client.request(ccr).await.unwrap();
             let handle = tokio::spawn(async move {
                 let _ = request.send().await.unwrap();
