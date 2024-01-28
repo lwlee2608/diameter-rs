@@ -4,22 +4,22 @@ use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct Float32Avp(f32);
+pub struct Float32(f32);
 
-impl Float32Avp {
-    pub fn new(value: f32) -> Float32Avp {
-        Float32Avp(value)
+impl Float32 {
+    pub fn new(value: f32) -> Float32 {
+        Float32(value)
     }
 
     pub fn value(&self) -> f32 {
         self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Float32Avp> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Float32> {
         let mut b = [0; 4];
         reader.read_exact(&mut b)?;
         let num = f32::from_be_bytes(b);
-        Ok(Float32Avp(num))
+        Ok(Float32(num))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -32,7 +32,7 @@ impl Float32Avp {
     }
 }
 
-impl fmt::Display for Float32Avp {
+impl fmt::Display for Float32 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -45,11 +45,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode() {
-        let avp = Float32Avp::new(-3.142);
+        let avp = Float32::new(-3.142);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = Float32Avp::decode_from(&mut cursor).unwrap();
+        let avp = Float32::decode_from(&mut cursor).unwrap();
         assert_eq!(avp.0, -3.142);
     }
 }

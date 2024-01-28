@@ -9,18 +9,18 @@ use std::io::Write;
 const RFC868_OFFSET: u32 = 2208988800; // Diff. between 1970 and 1900 in seconds.
 
 #[derive(Debug)]
-pub struct TimeAvp(DateTime<Utc>);
+pub struct Time(DateTime<Utc>);
 
-impl TimeAvp {
+impl Time {
     pub fn new(time: DateTime<Utc>) -> Self {
-        TimeAvp(time)
+        Time(time)
     }
 
     pub fn value(&self) -> &DateTime<Utc> {
         &self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<TimeAvp> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Time> {
         let mut b = [0; 4];
         reader.read_exact(&mut b)?;
 
@@ -31,7 +31,7 @@ impl TimeAvp {
             .single()
             .ok_or_else(|| Error::DecodeError("Invalid time".to_string()))?;
 
-        Ok(TimeAvp(timestamp))
+        Ok(Time(timestamp))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -52,7 +52,7 @@ impl TimeAvp {
     }
 }
 
-impl fmt::Display for TimeAvp {
+impl fmt::Display for Time {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.to_rfc3339())
     }
@@ -67,11 +67,11 @@ mod tests {
     #[test]
     fn test_encode_decode() {
         let now: DateTime<Utc> = Utc.with_ymd_and_hms(2024, 1, 10, 10, 35, 58).unwrap();
-        let avp = TimeAvp::new(now.into());
+        let avp = Time::new(now.into());
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = TimeAvp::decode_from(&mut cursor).unwrap();
+        let avp = Time::decode_from(&mut cursor).unwrap();
         assert_eq!(*avp.value(), now);
     }
 }

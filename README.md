@@ -21,10 +21,10 @@ diameter-rs = "^0.1"
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
-use diameter::avp::EnumeratedAvp;
-use diameter::avp::IdentityAvp;
-use diameter::avp::Unsigned32Avp;
-use diameter::avp::UTF8StringAvp;
+use diameter::avp::Enumerated;
+use diameter::avp::Identity;
+use diameter::avp::Unsigned32;
+use diameter::avp::UTF8String;
 use diameter::Result;
 use diameter::DiameterServer;
 use diameter::DiameterMessage;
@@ -49,12 +49,12 @@ async fn main() {
         );
 
         // Add various Attribute-Value Pairs (AVPs) to the response
-        res.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
-        res.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
-        res.add_avp(avp!(263, None, UTF8StringAvp::new("ses;123458890"), true));
-        res.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
-        res.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
-        res.add_avp(avp!(268, None, Unsigned32Avp::new(2001), true));
+        res.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
+        res.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
+        res.add_avp(avp!(263, None, UTF8String::new("ses;123458890"), true));
+        res.add_avp(avp!(416, None, Enumerated::new(1), true));
+        res.add_avp(avp!(415, None, Unsigned32::new(1000), true));
+        res.add_avp(avp!(268, None, Unsigned32::new(2001), true));
 
         // Return the response
         Ok(res)
@@ -67,10 +67,10 @@ async fn main() {
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
-use diameter::avp::IdentityAvp;
-use diameter::avp::EnumeratedAvp;
-use diameter::avp::Unsigned32Avp;
-use diameter::avp::UTF8StringAvp;
+use diameter::avp::Identity;
+use diameter::avp::Enumerated;
+use diameter::avp::Unsigned32;
+use diameter::avp::UTF8String;
 use diameter::DiameterClient;
 use diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
 
@@ -88,11 +88,11 @@ async fn main() {
         1123158611,
         3102381851,
     );
-    ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
-    ccr.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
-    ccr.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
-    ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
-    ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+    ccr.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
+    ccr.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
+    ccr.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
+    ccr.add_avp(avp!(416, None, Enumerated::new(1), true));
+    ccr.add_avp(avp!(415, None, Unsigned32::new(1000), true));
 
     // Send the CCR message to the server and wait for a response
     let cca = client.send_message(ccr).await.unwrap();

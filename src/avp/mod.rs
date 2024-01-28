@@ -52,22 +52,22 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::io::Write;
 
-pub use crate::avp::address::AddressAvp;
-pub use crate::avp::enumerated::EnumeratedAvp;
-pub use crate::avp::float32::Float32Avp;
-pub use crate::avp::float64::Float64Avp;
-pub use crate::avp::group::GroupAvp;
-pub use crate::avp::identity::IdentityAvp;
-pub use crate::avp::integer32::Integer32Avp;
-pub use crate::avp::integer64::Integer64Avp;
-pub use crate::avp::ipv4::IPv4Avp;
-pub use crate::avp::ipv6::IPv6Avp;
-pub use crate::avp::octetstring::OctetStringAvp;
-pub use crate::avp::time::TimeAvp;
-pub use crate::avp::unsigned32::Unsigned32Avp;
-pub use crate::avp::unsigned64::Unsigned64Avp;
+pub use crate::avp::address::Address;
+pub use crate::avp::enumerated::Enumerated;
+pub use crate::avp::float32::Float32;
+pub use crate::avp::float64::Float64;
+pub use crate::avp::group::Grouped;
+pub use crate::avp::identity::Identity;
+pub use crate::avp::integer32::Integer32;
+pub use crate::avp::integer64::Integer64;
+pub use crate::avp::ipv4::IPv4;
+pub use crate::avp::ipv6::IPv6;
+pub use crate::avp::octetstring::OctetString;
+pub use crate::avp::time::Time;
+pub use crate::avp::unsigned32::Unsigned32;
+pub use crate::avp::unsigned64::Unsigned64;
 pub use crate::avp::uri::DiameterURI;
-pub use crate::avp::utf8string::UTF8StringAvp;
+pub use crate::avp::utf8string::UTF8String;
 
 const VENDOR_FLAG: u8 = 0x80;
 const MANDATORY_FLAG: u8 = 0x40;
@@ -118,22 +118,22 @@ pub enum AvpType {
 
 #[derive(Debug)]
 pub enum AvpValue {
-    Address(AddressAvp),
-    AddressIPv4(IPv4Avp),
-    AddressIPv6(IPv6Avp),
-    Identity(IdentityAvp),
+    Address(Address),
+    AddressIPv4(IPv4),
+    AddressIPv6(IPv6),
+    Identity(Identity),
     DiameterURI(DiameterURI),
-    Enumerated(EnumeratedAvp),
-    Float32(Float32Avp),
-    Float64(Float64Avp),
-    Grouped(GroupAvp),
-    Integer32(Integer32Avp),
-    Integer64(Integer64Avp),
-    OctetString(OctetStringAvp),
-    Time(TimeAvp),
-    Unsigned32(Unsigned32Avp),
-    Unsigned64(Unsigned64Avp),
-    UTF8String(UTF8StringAvp),
+    Enumerated(Enumerated),
+    Float32(Float32),
+    Float64(Float64),
+    Grouped(Grouped),
+    Integer32(Integer32),
+    Integer64(Integer64),
+    OctetString(OctetString),
+    Time(Time),
+    Unsigned32(Unsigned32),
+    Unsigned64(Unsigned64),
+    UTF8String(UTF8String),
 }
 
 impl fmt::Display for AvpValue {
@@ -203,8 +203,8 @@ impl AvpValue {
     }
 }
 
-impl From<IdentityAvp> for AvpValue {
-    fn from(identity: IdentityAvp) -> Self {
+impl From<Identity> for AvpValue {
+    fn from(identity: Identity) -> Self {
         AvpValue::Identity(identity)
     }
 }
@@ -215,86 +215,86 @@ impl From<DiameterURI> for AvpValue {
     }
 }
 
-impl From<EnumeratedAvp> for AvpValue {
-    fn from(enumerated: EnumeratedAvp) -> Self {
+impl From<Enumerated> for AvpValue {
+    fn from(enumerated: Enumerated) -> Self {
         AvpValue::Enumerated(enumerated)
     }
 }
 
-impl From<Float32Avp> for AvpValue {
-    fn from(float32: Float32Avp) -> Self {
+impl From<Float32> for AvpValue {
+    fn from(float32: Float32) -> Self {
         AvpValue::Float32(float32)
     }
 }
 
-impl From<Float64Avp> for AvpValue {
-    fn from(float64: Float64Avp) -> Self {
+impl From<Float64> for AvpValue {
+    fn from(float64: Float64) -> Self {
         AvpValue::Float64(float64)
     }
 }
 
-impl From<Integer32Avp> for AvpValue {
-    fn from(integer32: Integer32Avp) -> Self {
+impl From<Integer32> for AvpValue {
+    fn from(integer32: Integer32) -> Self {
         AvpValue::Integer32(integer32)
     }
 }
 
-impl From<Integer64Avp> for AvpValue {
-    fn from(integer64: Integer64Avp) -> Self {
+impl From<Integer64> for AvpValue {
+    fn from(integer64: Integer64) -> Self {
         AvpValue::Integer64(integer64)
     }
 }
 
-impl From<AddressAvp> for AvpValue {
-    fn from(avp: AddressAvp) -> Self {
+impl From<Address> for AvpValue {
+    fn from(avp: Address) -> Self {
         AvpValue::Address(avp)
     }
 }
 
-impl From<IPv4Avp> for AvpValue {
-    fn from(ipv4: IPv4Avp) -> Self {
+impl From<IPv4> for AvpValue {
+    fn from(ipv4: IPv4) -> Self {
         AvpValue::AddressIPv4(ipv4)
     }
 }
 
-impl From<IPv6Avp> for AvpValue {
-    fn from(ipv6: IPv6Avp) -> Self {
+impl From<IPv6> for AvpValue {
+    fn from(ipv6: IPv6) -> Self {
         AvpValue::AddressIPv6(ipv6)
     }
 }
 
-impl From<OctetStringAvp> for AvpValue {
-    fn from(octetstring: OctetStringAvp) -> Self {
+impl From<OctetString> for AvpValue {
+    fn from(octetstring: OctetString) -> Self {
         AvpValue::OctetString(octetstring)
     }
 }
 
-impl From<TimeAvp> for AvpValue {
-    fn from(time: TimeAvp) -> Self {
+impl From<Time> for AvpValue {
+    fn from(time: Time) -> Self {
         AvpValue::Time(time)
     }
 }
 
-impl From<Unsigned32Avp> for AvpValue {
-    fn from(unsigned32: Unsigned32Avp) -> Self {
+impl From<Unsigned32> for AvpValue {
+    fn from(unsigned32: Unsigned32) -> Self {
         AvpValue::Unsigned32(unsigned32)
     }
 }
 
-impl From<Unsigned64Avp> for AvpValue {
-    fn from(unsigned64: Unsigned64Avp) -> Self {
+impl From<Unsigned64> for AvpValue {
+    fn from(unsigned64: Unsigned64) -> Self {
         AvpValue::Unsigned64(unsigned64)
     }
 }
 
-impl From<UTF8StringAvp> for AvpValue {
-    fn from(utf8string: UTF8StringAvp) -> Self {
+impl From<UTF8String> for AvpValue {
+    fn from(utf8string: UTF8String) -> Self {
         AvpValue::UTF8String(utf8string)
     }
 }
 
-impl From<GroupAvp> for AvpValue {
-    fn from(group: GroupAvp) -> Self {
+impl From<Grouped> for AvpValue {
+    fn from(group: Grouped) -> Self {
         AvpValue::Grouped(group)
     }
 }
@@ -427,32 +427,32 @@ impl Avp {
 
         let value = match avp_type {
             AvpType::Address => {
-                AvpValue::Address(AddressAvp::decode_from(reader, value_length as usize)?)
+                AvpValue::Address(Address::decode_from(reader, value_length as usize)?)
             }
-            AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4Avp::decode_from(reader)?),
-            AvpType::AddressIPv6 => AvpValue::AddressIPv6(IPv6Avp::decode_from(reader)?),
-            AvpType::Float32 => AvpValue::Float32(Float32Avp::decode_from(reader)?),
-            AvpType::Float64 => AvpValue::Float64(Float64Avp::decode_from(reader)?),
-            AvpType::Enumerated => AvpValue::Enumerated(EnumeratedAvp::decode_from(reader)?),
-            AvpType::Integer32 => AvpValue::Integer32(Integer32Avp::decode_from(reader)?),
-            AvpType::Integer64 => AvpValue::Integer64(Integer64Avp::decode_from(reader)?),
-            AvpType::Unsigned32 => AvpValue::Unsigned32(Unsigned32Avp::decode_from(reader)?),
-            AvpType::Unsigned64 => AvpValue::Unsigned64(Unsigned64Avp::decode_from(reader)?),
+            AvpType::AddressIPv4 => AvpValue::AddressIPv4(IPv4::decode_from(reader)?),
+            AvpType::AddressIPv6 => AvpValue::AddressIPv6(IPv6::decode_from(reader)?),
+            AvpType::Float32 => AvpValue::Float32(Float32::decode_from(reader)?),
+            AvpType::Float64 => AvpValue::Float64(Float64::decode_from(reader)?),
+            AvpType::Enumerated => AvpValue::Enumerated(Enumerated::decode_from(reader)?),
+            AvpType::Integer32 => AvpValue::Integer32(Integer32::decode_from(reader)?),
+            AvpType::Integer64 => AvpValue::Integer64(Integer64::decode_from(reader)?),
+            AvpType::Unsigned32 => AvpValue::Unsigned32(Unsigned32::decode_from(reader)?),
+            AvpType::Unsigned64 => AvpValue::Unsigned64(Unsigned64::decode_from(reader)?),
             AvpType::UTF8String => {
-                AvpValue::UTF8String(UTF8StringAvp::decode_from(reader, value_length as usize)?)
+                AvpValue::UTF8String(UTF8String::decode_from(reader, value_length as usize)?)
             }
             AvpType::OctetString => {
-                AvpValue::OctetString(OctetStringAvp::decode_from(reader, value_length as usize)?)
+                AvpValue::OctetString(OctetString::decode_from(reader, value_length as usize)?)
             }
             AvpType::Identity => {
-                AvpValue::Identity(IdentityAvp::decode_from(reader, value_length as usize)?)
+                AvpValue::Identity(Identity::decode_from(reader, value_length as usize)?)
             }
             AvpType::DiameterURI => {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
-            AvpType::Time => AvpValue::Time(TimeAvp::decode_from(reader)?),
+            AvpType::Time => AvpValue::Time(Time::decode_from(reader)?),
             AvpType::Grouped => {
-                AvpValue::Grouped(GroupAvp::decode_from(reader, value_length as usize)?)
+                AvpValue::Grouped(Grouped::decode_from(reader, value_length as usize)?)
             }
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
         };
@@ -504,28 +504,28 @@ impl Avp {
         ((4 - (length & 0b11)) % 4) as u8
     }
 
-    pub fn get_address(&self) -> Option<&AddressAvp> {
+    pub fn get_address(&self) -> Option<&Address> {
         match &self.value {
             AvpValue::Address(avp) => Some(avp),
             _ => None,
         }
     }
 
-    pub fn get_address_ipv4(&self) -> Option<&IPv4Avp> {
+    pub fn get_address_ipv4(&self) -> Option<&IPv4> {
         match &self.value {
             AvpValue::AddressIPv4(avp) => Some(avp),
             _ => None,
         }
     }
 
-    pub fn get_address_ipv6(&self) -> Option<&IPv6Avp> {
+    pub fn get_address_ipv6(&self) -> Option<&IPv6> {
         match &self.value {
             AvpValue::AddressIPv6(avp) => Some(avp),
             _ => None,
         }
     }
 
-    pub fn get_identity(&self) -> Option<&IdentityAvp> {
+    pub fn get_identity(&self) -> Option<&Identity> {
         match &self.value {
             AvpValue::Identity(avp) => Some(avp),
             _ => None,
@@ -539,7 +539,7 @@ impl Avp {
         }
     }
 
-    pub fn get_enumerated(&self) -> Option<&EnumeratedAvp> {
+    pub fn get_enumerated(&self) -> Option<&Enumerated> {
         match &self.value {
             AvpValue::Enumerated(avp) => Some(avp),
             _ => None,
@@ -574,21 +574,21 @@ impl Avp {
         }
     }
 
-    pub fn get_utf8string(&self) -> Option<&UTF8StringAvp> {
+    pub fn get_utf8string(&self) -> Option<&UTF8String> {
         match &self.value {
             AvpValue::UTF8String(avp) => Some(avp),
             _ => None,
         }
     }
 
-    pub fn get_octetstring(&self) -> Option<&OctetStringAvp> {
+    pub fn get_octetstring(&self) -> Option<&OctetString> {
         match &self.value {
             AvpValue::OctetString(avp) => Some(avp),
             _ => None,
         }
     }
 
-    pub fn get_time(&self) -> Option<&TimeAvp> {
+    pub fn get_time(&self) -> Option<&Time> {
         match &self.value {
             AvpValue::Time(avp) => Some(avp),
             _ => None,
@@ -609,7 +609,7 @@ impl Avp {
         }
     }
 
-    pub fn get_grouped(&self) -> Option<&GroupAvp> {
+    pub fn get_grouped(&self) -> Option<&Grouped> {
         match &self.value {
             AvpValue::Grouped(avp) => Some(avp),
             _ => None,

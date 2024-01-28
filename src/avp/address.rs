@@ -3,19 +3,19 @@ use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
-use super::octetstring::OctetStringAvp;
+use super::octetstring::OctetString;
 
 #[derive(Debug)]
-pub struct AddressAvp(OctetStringAvp);
+pub struct Address(OctetString);
 
-impl AddressAvp {
-    pub fn new(value: Vec<u8>) -> AddressAvp {
-        AddressAvp(OctetStringAvp::new(value))
+impl Address {
+    pub fn new(value: Vec<u8>) -> Address {
+        Address(OctetString::new(value))
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<AddressAvp> {
-        let avp = OctetStringAvp::decode_from(reader, len)?;
-        Ok(AddressAvp(avp))
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<Address> {
+        let avp = OctetString::decode_from(reader, len)?;
+        Ok(Address(avp))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -28,7 +28,7 @@ impl AddressAvp {
     }
 }
 
-impl fmt::Display for AddressAvp {
+impl fmt::Display for Address {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (index, &byte) in self.0.value().iter().enumerate() {
             if index > 0 {

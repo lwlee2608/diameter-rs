@@ -5,18 +5,18 @@ use std::io::Seek;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct GroupAvp(Vec<Avp>);
+pub struct Grouped(Vec<Avp>);
 
-impl GroupAvp {
-    pub fn new(avps: Vec<Avp>) -> GroupAvp {
-        GroupAvp(avps)
+impl Grouped {
+    pub fn new(avps: Vec<Avp>) -> Grouped {
+        Grouped(avps)
     }
 
     pub fn avps(&self) -> &[Avp] {
         &self.0
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<GroupAvp> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<Grouped> {
         let mut avps = Vec::new();
 
         let mut offset = 0;
@@ -34,7 +34,7 @@ impl GroupAvp {
             ));
         }
 
-        Ok(GroupAvp(avps))
+        Ok(Grouped(avps))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -53,7 +53,7 @@ impl GroupAvp {
 }
 
 // TODO implement indent
-impl std::fmt::Display for GroupAvp {
+impl std::fmt::Display for Grouped {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "\n")?;
         for avp in &self.0 {
@@ -67,21 +67,21 @@ impl std::fmt::Display for GroupAvp {
 mod tests {
     use super::*;
     use crate::avp;
-    use crate::avp::enumerated::EnumeratedAvp;
-    use crate::avp::unsigned32::Unsigned32Avp;
+    use crate::avp::enumerated::Enumerated;
+    use crate::avp::unsigned32::Unsigned32;
     use crate::avp::AvpValue;
 
     #[test]
     fn test_encode_decode() {
-        let avp = GroupAvp::new(vec![
-            avp!(416, None, EnumeratedAvp::new(1)),
-            avp!(415, None, Unsigned32Avp::new(1000)),
+        let avp = Grouped::new(vec![
+            avp!(416, None, Enumerated::new(1)),
+            avp!(415, None, Unsigned32::new(1000)),
         ]);
         assert_eq!(avp.avps().len(), 2);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = std::io::Cursor::new(&encoded);
-        let avp = GroupAvp::decode_from(&mut cursor, encoded.len()).unwrap();
+        let avp = Grouped::decode_from(&mut cursor, encoded.len()).unwrap();
         assert_eq!(avp.avps().len(), 2);
         assert_eq!(avp.avps()[0].get_code(), 416);
         assert_eq!(avp.avps()[1].get_code(), 415);

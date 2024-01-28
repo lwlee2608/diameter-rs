@@ -4,22 +4,22 @@ use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct Unsigned64Avp(u64);
+pub struct Unsigned64(u64);
 
-impl Unsigned64Avp {
-    pub fn new(value: u64) -> Unsigned64Avp {
-        Unsigned64Avp(value)
+impl Unsigned64 {
+    pub fn new(value: u64) -> Unsigned64 {
+        Unsigned64(value)
     }
 
     pub fn value(&self) -> u64 {
         self.0
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Unsigned64Avp> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<Unsigned64> {
         let mut b = [0; 8];
         reader.read_exact(&mut b)?;
         let num = u64::from_be_bytes(b);
-        Ok(Unsigned64Avp(num))
+        Ok(Unsigned64(num))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -32,7 +32,7 @@ impl Unsigned64Avp {
     }
 }
 
-impl fmt::Display for Unsigned64Avp {
+impl fmt::Display for Unsigned64 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -45,11 +45,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode() {
-        let avp = Unsigned64Avp::new(123456789000000000);
+        let avp = Unsigned64::new(123456789000000000);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = Unsigned64Avp::decode_from(&mut cursor).unwrap();
+        let avp = Unsigned64::decode_from(&mut cursor).unwrap();
         assert_eq!(avp.0, 123456789000000000);
     }
 }

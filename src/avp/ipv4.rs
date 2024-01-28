@@ -5,19 +5,19 @@ use std::io::Write;
 use std::net::Ipv4Addr;
 
 #[derive(Debug)]
-pub struct IPv4Avp(Ipv4Addr);
+pub struct IPv4(Ipv4Addr);
 
-impl IPv4Avp {
-    pub fn new(value: Ipv4Addr) -> IPv4Avp {
-        IPv4Avp(value)
+impl IPv4 {
+    pub fn new(value: Ipv4Addr) -> IPv4 {
+        IPv4(value)
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R) -> Result<IPv4Avp> {
+    pub fn decode_from<R: Read>(reader: &mut R) -> Result<IPv4> {
         let mut b = [0; 4];
         reader.read_exact(&mut b)?;
 
         let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
-        Ok(IPv4Avp(ip))
+        Ok(IPv4(ip))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -30,7 +30,7 @@ impl IPv4Avp {
     }
 }
 
-impl fmt::Display for IPv4Avp {
+impl fmt::Display for IPv4 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -43,11 +43,11 @@ mod tests {
 
     #[test]
     fn test_encode_decode() {
-        let avp = IPv4Avp::new(Ipv4Addr::new(127, 0, 0, 1));
+        let avp = IPv4::new(Ipv4Addr::new(127, 0, 0, 1));
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = IPv4Avp::decode_from(&mut cursor).unwrap();
+        let avp = IPv4::decode_from(&mut cursor).unwrap();
         assert_eq!(avp.0, Ipv4Addr::new(127, 0, 0, 1));
     }
 }

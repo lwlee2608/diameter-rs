@@ -1,24 +1,24 @@
-use crate::avp::UTF8StringAvp;
+use crate::avp::UTF8String;
 use crate::error::Result;
 use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-pub struct IdentityAvp(UTF8StringAvp);
+pub struct Identity(UTF8String);
 
-impl IdentityAvp {
-    pub fn new(value: &str) -> IdentityAvp {
-        IdentityAvp(UTF8StringAvp::new(value))
+impl Identity {
+    pub fn new(value: &str) -> Identity {
+        Identity(UTF8String::new(value))
     }
 
     pub fn value(&self) -> &str {
         self.0.value()
     }
 
-    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<IdentityAvp> {
-        let avp = UTF8StringAvp::decode_from(reader, len)?;
-        Ok(IdentityAvp(avp))
+    pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<Identity> {
+        let avp = UTF8String::decode_from(reader, len)?;
+        Ok(Identity(avp))
     }
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
@@ -31,7 +31,7 @@ impl IdentityAvp {
     }
 }
 
-impl fmt::Display for IdentityAvp {
+impl fmt::Display for Identity {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0.value())
     }
@@ -46,11 +46,11 @@ mod tests {
     #[test]
     fn test_encode_decode_ascii() {
         let bytes = "example.com";
-        let avp = IdentityAvp::new(bytes);
+        let avp = Identity::new(bytes);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp = UTF8StringAvp::decode_from(&mut cursor, bytes.len()).unwrap();
+        let avp = UTF8String::decode_from(&mut cursor, bytes.len()).unwrap();
         assert_eq!(avp.value(), bytes);
     }
 }

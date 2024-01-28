@@ -235,10 +235,10 @@ impl DiameterRequest {
 mod tests {
     use super::*;
     use crate::avp;
-    use crate::avp::enumerated::EnumeratedAvp;
-    use crate::avp::identity::IdentityAvp;
-    use crate::avp::unsigned32::Unsigned32Avp;
-    use crate::avp::utf8string::UTF8StringAvp;
+    use crate::avp::enumerated::Enumerated;
+    use crate::avp::identity::Identity;
+    use crate::avp::unsigned32::Unsigned32;
+    use crate::avp::utf8string::UTF8String;
     use crate::avp::Avp;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage, REQUEST_FLAG};
 
@@ -252,11 +252,11 @@ mod tests {
             1123158610,
             3102381851,
         );
-        ccr.add_avp(avp!(264, None, IdentityAvp::new("host.example.com"), true));
-        ccr.add_avp(avp!(296, None, IdentityAvp::new("realm.example.com"), true));
-        ccr.add_avp(avp!(263, None, UTF8StringAvp::new("ses;12345888"), true));
-        ccr.add_avp(avp!(416, None, EnumeratedAvp::new(1), true));
-        ccr.add_avp(avp!(415, None, Unsigned32Avp::new(1000), true));
+        ccr.add_avp(avp!(264, None, Identity::new("host.example.com"), true));
+        ccr.add_avp(avp!(296, None, Identity::new("realm.example.com"), true));
+        ccr.add_avp(avp!(263, None, UTF8String::new("ses;12345888"), true));
+        ccr.add_avp(avp!(416, None, Enumerated::new(1), true));
+        ccr.add_avp(avp!(415, None, Unsigned32::new(1000), true));
 
         let mut client = DiameterClient::new("localhost:3868");
         let _ = client.connect().await;

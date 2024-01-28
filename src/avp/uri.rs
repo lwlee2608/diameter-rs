@@ -3,14 +3,14 @@ use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
-use crate::avp::OctetStringAvp;
+use crate::avp::OctetString;
 
 #[derive(Debug)]
-pub struct DiameterURI(OctetStringAvp);
+pub struct DiameterURI(OctetString);
 
 impl DiameterURI {
     pub fn new(value: Vec<u8>) -> DiameterURI {
-        DiameterURI(OctetStringAvp::new(value))
+        DiameterURI(OctetString::new(value))
     }
 
     pub fn value(&self) -> &[u8] {
@@ -18,7 +18,7 @@ impl DiameterURI {
     }
 
     pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<DiameterURI> {
-        let avp = OctetStringAvp::decode_from(reader, len)?;
+        let avp = OctetString::decode_from(reader, len)?;
         Ok(DiameterURI(avp))
     }
 
