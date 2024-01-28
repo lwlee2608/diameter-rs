@@ -19,7 +19,7 @@
 //! use diameter::Result;
 //! use diameter::DiameterServer;
 //! use diameter::DiameterMessage;
-//! use diameter::flags::R;
+//! use crate::diameter::flags;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -34,7 +34,7 @@
 //!         let mut res = DiameterMessage::new(
 //!             req.get_command_code(),
 //!             req.get_application_id(),
-//!             req.get_flags() ^ R,
+//!             req.get_flags() ^ flags::REQUEST,
 //!             req.get_hop_by_hop_id(),
 //!             req.get_end_to_end_id(),
 //!         );
@@ -64,7 +64,7 @@
 //! use crate::avp::flags::M;
 //! use diameter::DiameterClient;
 //! use diameter::{ApplicationId, CommandCode, DiameterMessage};
-//! use diameter::flags::R;
+//! use crate::diameter::flags;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -76,7 +76,7 @@
 //!     let mut ccr = DiameterMessage::new(
 //!         CommandCode::CreditControl,
 //!         ApplicationId::CreditControl,
-//!         R,
+//!         flags::REQUEST,
 //!         1123158611,
 //!         3102381851,
 //!     );

@@ -75,10 +75,6 @@ pub mod flags {
     pub const P: u8 = 0x20;
 }
 
-// const VENDOR_FLAG: u8 = 0x80;
-// const flags::M: u8 = 0x40;
-// const flags::P: u8 = 0x20;
-
 #[derive(Debug)]
 pub struct Avp {
     header: AvpHeader,

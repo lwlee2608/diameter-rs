@@ -43,10 +43,10 @@ use std::io::Write;
 pub const HEADER_LENGTH: u32 = 20;
 
 pub mod flags {
-    pub const R: u8 = 0x80;
-    pub const P: u8 = 0x40;
-    pub const E: u8 = 0x20;
-    pub const T: u8 = 0x10;
+    pub const REQUEST: u8 = 0x80;
+    pub const PROXYABLE: u8 = 0x40;
+    pub const ERROR: u8 = 0x20;
+    pub const RETRANSMIT: u8 = 0x10;
 }
 
 /// Represents a Diameter message as defined in RFC 6733.
@@ -309,22 +309,22 @@ impl fmt::Display for DiameterMessage {
 
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let request_flag = if self.flags & flags::R != 0 {
+        let request_flag = if self.flags & flags::REQUEST != 0 {
             "Request"
         } else {
             "Answer"
         };
-        let error_flag = if self.flags & flags::E != 0 {
+        let error_flag = if self.flags & flags::ERROR != 0 {
             "Error"
         } else {
             ""
         };
-        let proxyable_flag = if self.flags & flags::P != 0 {
+        let proxyable_flag = if self.flags & flags::PROXYABLE != 0 {
             "Proxyable"
         } else {
             ""
         };
-        let retransmit_flag = if self.flags & flags::T != 0 {
+        let retransmit_flag = if self.flags & flags::RETRANSMIT != 0 {
             "Retransmit"
         } else {
             ""
@@ -424,7 +424,7 @@ mod tests {
 
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
-        assert_eq!(header.flags, flags::R);
+        assert_eq!(header.flags, flags::REQUEST);
         assert_eq!(header.code, CommandCode::CreditControl);
         assert_eq!(header.application_id, ApplicationId::CreditControl);
         assert_eq!(header.hop_by_hop_id, 3);
@@ -493,7 +493,7 @@ mod tests {
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            flags::R | flags::P,
+            flags::REQUEST | flags::PROXYABLE,
             1123158610,
             3102381851,
         );

@@ -73,7 +73,7 @@ mod tests {
     use crate::avp::Avp;
     use crate::avp::Unsigned64;
     use crate::client::DiameterClient;
-    use crate::diameter::flags::R;
+    use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::error::Result;
     use crate::server::DiameterServer;
@@ -91,7 +91,7 @@ mod tests {
                     let mut res = DiameterMessage::new(
                         req.get_command_code(),
                         req.get_application_id(),
-                        req.get_flags() ^ R,
+                        req.get_flags() ^ flags::REQUEST,
                         req.get_hop_by_hop_id(),
                         req.get_end_to_end_id(),
                     );
@@ -115,7 +115,7 @@ mod tests {
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            R,
+            flags::REQUEST,
             1123158611,
             3102381851,
         );
@@ -142,7 +142,7 @@ mod tests {
             let mut ccr = DiameterMessage::new(
                 CommandCode::CreditControl,
                 ApplicationId::CreditControl,
-                R,
+                flags::REQUEST,
                 seq_no,
                 seq_no,
             );

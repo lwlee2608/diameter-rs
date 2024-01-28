@@ -241,7 +241,7 @@ mod tests {
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
     use crate::avp::Avp;
-    use crate::diameter::flags::R;
+    use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
 
     #[ignore]
@@ -250,7 +250,7 @@ mod tests {
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
-            R,
+            flags::REQUEST,
             1123158610,
             3102381851,
         );

@@ -9,7 +9,7 @@ use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
-use diameter::flags::{P, R};
+use diameter::flags;
 use diameter::ApplicationId;
 use diameter::CommandCode;
 use diameter::DiameterHeader;
@@ -117,7 +117,7 @@ fn cca_message() -> DiameterMessage {
     let mut message = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
-        R | P,
+        flags::REQUEST | flags::PROXYABLE,
         1123158610,
         3102381851,
     );
