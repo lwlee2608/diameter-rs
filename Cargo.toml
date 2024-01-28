@@ -1,10 +1,13 @@
 [package]
 name = "diameter"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 authors = ["Jason Lee<lwlee2608@gmail.com>"]
 description = "Rust Implementation of the Diameter Protocol."
 license = "MIT"
+keywords = ["diameter", "network"]
+repository = "https://github.com/lwlee2608/diameter-rs"
+documentation = "https://docs.rs/diameter"
 
 [dependencies]
 num-traits = "0.2"
