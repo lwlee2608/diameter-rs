@@ -135,16 +135,15 @@ mod tests {
         // Send Multiple CCRs
         let mut handles = vec![];
         let n = 3;
-        let mut seq_no = 0;
 
         for _ in 0..n {
-            seq_no = seq_no + 1;
+            let seq_num = client.get_next_seq_num();
             let mut ccr = DiameterMessage::new(
                 CommandCode::CreditControl,
                 ApplicationId::CreditControl,
                 flags::REQUEST,
-                seq_no,
-                seq_no,
+                seq_num,
+                seq_num,
             );
             ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
             ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));

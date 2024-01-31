@@ -21,12 +21,15 @@ use tokio::sync::Mutex;
 ///     address: The address of the Diameter server to connect to.
 ///     writer: An optional thread-safe writer for sending messages to the server.
 ///     msg_caches: A shared, mutable hash map that maps message IDs to channels for sending responses back to the caller.
+///     seq_num: The next sequence number to use for a message.
 
 pub struct DiameterClient {
     address: String,
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+    seq_num: u32,
 }
+// static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl DiameterClient {
     /// Creates a new `DiameterClient` instance with a specified server address.
@@ -44,6 +47,7 @@ impl DiameterClient {
             address: addr.into(),
             writer: None,
             msg_caches: Arc::new(Mutex::new(HashMap::new())),
+            seq_num: 0,
         }
     }
 
@@ -148,6 +152,12 @@ impl DiameterClient {
         let _ = request.send().await?;
         let response = request.response().await?;
         Ok(response)
+    }
+
+    // Returns the next sequence number.
+    pub fn get_next_seq_num(&mut self) -> u32 {
+        self.seq_num += 1;
+        self.seq_num
     }
 }
 

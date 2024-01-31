@@ -32,6 +32,11 @@ impl Definition {
         self.avps.get(&code)
     }
 
+    pub fn get_avp_by_name(&self, name: &str) -> Option<&AvpDefinition> {
+        // Might consider indexing avp.name
+        self.avps.values().find(|avp| avp.name == name)
+    }
+
     pub fn get_avp_type(&self, code: u32) -> Option<&AvpType> {
         match self.avps.get(&code) {
             Some(avp) => Some(&avp.avp_type),
