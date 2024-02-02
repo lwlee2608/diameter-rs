@@ -15,6 +15,7 @@ pub struct AvpDefinition {
     code: u32,
     name: String,
     avp_type: AvpType,
+    m_flag: bool,
 }
 
 impl Definition {
@@ -142,10 +143,16 @@ pub fn parse(xml: &str) -> Definition {
             _ => AvpType::Unknown,
         };
 
+        let m_flag = match avp.must {
+            Some(ref s) if s == "M" => true,
+            _ => false,
+        };
+
         let avp_definition = AvpDefinition {
             code: avp.code.parse::<u32>().unwrap(),
             name: avp.name.clone(),
             avp_type,
+            m_flag,
         };
 
         definition.add_avp(avp_definition);
