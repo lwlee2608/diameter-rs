@@ -12,10 +12,10 @@ pub struct Definition {
 
 #[derive(Debug)]
 pub struct AvpDefinition {
-    code: u32,
-    name: String,
-    avp_type: AvpType,
-    m_flag: bool,
+    pub code: u32,
+    pub name: String,
+    pub avp_type: AvpType,
+    pub m_flag: bool,
 }
 
 impl Definition {

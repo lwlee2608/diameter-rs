@@ -97,7 +97,7 @@ pub struct AvpFlags {
     pub private: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AvpType {
     Unknown,
     Address,
