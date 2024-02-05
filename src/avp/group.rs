@@ -4,7 +4,7 @@ use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grouped(Vec<Avp>);
 
 impl Grouped {

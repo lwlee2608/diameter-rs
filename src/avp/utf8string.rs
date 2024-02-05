@@ -3,7 +3,7 @@ use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UTF8String(String);
 
 impl UTF8String {

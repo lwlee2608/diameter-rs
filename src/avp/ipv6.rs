@@ -4,7 +4,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::Ipv6Addr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IPv6(Ipv6Addr);
 
 impl IPv6 {

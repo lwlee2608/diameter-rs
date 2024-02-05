@@ -5,7 +5,7 @@ use std::io::Write;
 
 use super::octetstring::OctetString;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Address(OctetString);
 
 impl Address {

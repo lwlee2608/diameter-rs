@@ -8,7 +8,7 @@ use std::io::Write;
 
 const RFC868_OFFSET: u32 = 2208988800; // Diff. between 1970 and 1900 in seconds.
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Time(DateTime<Utc>);
 
 impl Time {

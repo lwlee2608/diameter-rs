@@ -5,7 +5,7 @@ use std::io::Write;
 
 use crate::avp::OctetString;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DiameterURI(OctetString);
 
 impl DiameterURI {

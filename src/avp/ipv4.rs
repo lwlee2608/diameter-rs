@@ -4,7 +4,7 @@ use std::io::Read;
 use std::io::Write;
 use std::net::Ipv4Addr;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IPv4(Ipv4Addr);
 
 impl IPv4 {

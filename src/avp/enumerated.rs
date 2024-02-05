@@ -3,7 +3,7 @@ use std::fmt;
 use std::io::Read;
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Enumerated(i32);
 
 impl Enumerated {

@@ -75,14 +75,14 @@ pub mod flags {
     pub const P: u8 = 0x20;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Avp {
     header: AvpHeader,
     value: AvpValue,
     padding: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AvpHeader {
     code: u32,
     flags: AvpFlags,
@@ -90,7 +90,7 @@ pub struct AvpHeader {
     vendor_id: Option<u32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AvpFlags {
     pub vendor: bool,
     pub mandatory: bool,
@@ -118,7 +118,7 @@ pub enum AvpType {
     UTF8String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AvpValue {
     Address(Address),
     AddressIPv4(IPv4),
