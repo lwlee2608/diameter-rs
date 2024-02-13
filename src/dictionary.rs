@@ -1,13 +1,18 @@
+use crate::ApplicationId;
+use crate::CommandCode;
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use serde_xml_rs::from_str;
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::avp::AvpType;
 
 #[derive(Debug)]
 pub struct Definition {
     avps: BTreeMap<u32, AvpDefinition>,
+    applications: HashMap<String, ApplicationId>,
+    commands: HashMap<String, CommandCode>,
 }
 
 #[derive(Debug)]
@@ -22,6 +27,8 @@ impl Definition {
     pub fn new() -> Definition {
         Definition {
             avps: BTreeMap::new(),
+            applications: HashMap::new(),
+            commands: HashMap::new(),
         }
     }
 
@@ -51,18 +58,28 @@ impl Definition {
             None => None,
         }
     }
+
+    pub fn get_application_id_by_name(&self, name: &str) -> Option<ApplicationId> {
+        self.applications.get(name).map(|app| *app)
+    }
+
+    pub fn get_command_code_by_name(&self, name: &str) -> Option<CommandCode> {
+        self.commands.get(name).map(|code| *code)
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Diameter {
-    application: Application,
+    #[serde(rename = "application")]
+    applications: Vec<Application>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Application {
     id: String,
     name: String,
-    command: Option<Command>,
+    #[serde(rename = "command", default)]
+    commands: Vec<Command>,
     #[serde(rename = "avp", default)]
     avps: Vec<Avp>,
 }
@@ -120,42 +137,55 @@ struct Item {
 pub fn parse(xml: &str) -> Definition {
     let dict: Diameter = from_str(xml).unwrap();
 
+    // TODO Definition may need to include avp that matches its application and command code
     let mut definition = Definition::new();
 
-    dict.application.avps.iter().for_each(|avp| {
-        let avp_type = match avp.data.data_type.as_str() {
-            "UTF8String" => AvpType::UTF8String,
-            "OctetString" => AvpType::OctetString,
-            "Integer32" => AvpType::Integer32,
-            "Integer64" => AvpType::Integer64,
-            "Unsigned32" => AvpType::Unsigned32,
-            "Unsigned64" => AvpType::Unsigned64,
-            "Enumerated" => AvpType::Enumerated,
-            "Grouped" => AvpType::Grouped,
-            "DiameterIdentity" => AvpType::Identity,
-            "DiameterURI" => AvpType::DiameterURI,
-            "Time" => AvpType::Time,
-            "Address" => AvpType::Address,
-            "IPv4" => AvpType::AddressIPv4,
-            "IPv6" => AvpType::AddressIPv6,
-            "Float32" => AvpType::Float32,
-            "Float64" => AvpType::Float64,
-            _ => AvpType::Unknown,
-        };
+    dict.applications.iter().for_each(|app| {
+        let app_id = app.id.parse::<u32>().unwrap();
+        let app_id: ApplicationId = ApplicationId::from_u32(app_id).unwrap();
+        definition.applications.insert(app.name.clone(), app_id);
 
-        let m_flag = match avp.must {
-            Some(ref s) if s == "M" => true,
-            _ => false,
-        };
+        app.commands.iter().for_each(|cmd| {
+            let cmd_code = cmd.code.parse::<u32>().unwrap();
+            let cmd_code: CommandCode = CommandCode::from_u32(cmd_code).unwrap();
+            definition.commands.insert(cmd.name.clone(), cmd_code);
+        });
 
-        let avp_definition = AvpDefinition {
-            code: avp.code.parse::<u32>().unwrap(),
-            name: avp.name.clone(),
-            avp_type,
-            m_flag,
-        };
+        app.avps.iter().for_each(|avp| {
+            let avp_type = match avp.data.data_type.as_str() {
+                "UTF8String" => AvpType::UTF8String,
+                "OctetString" => AvpType::OctetString,
+                "Integer32" => AvpType::Integer32,
+                "Integer64" => AvpType::Integer64,
+                "Unsigned32" => AvpType::Unsigned32,
+                "Unsigned64" => AvpType::Unsigned64,
+                "Enumerated" => AvpType::Enumerated,
+                "Grouped" => AvpType::Grouped,
+                "DiameterIdentity" => AvpType::Identity,
+                "DiameterURI" => AvpType::DiameterURI,
+                "Time" => AvpType::Time,
+                "Address" => AvpType::Address,
+                "IPv4" => AvpType::AddressIPv4,
+                "IPv6" => AvpType::AddressIPv6,
+                "Float32" => AvpType::Float32,
+                "Float64" => AvpType::Float64,
+                _ => AvpType::Unknown,
+            };
 
-        definition.add_avp(avp_definition);
+            let m_flag = match avp.must {
+                Some(ref s) if s == "M" => true,
+                _ => false,
+            };
+
+            let avp_definition = AvpDefinition {
+                code: avp.code.parse::<u32>().unwrap(),
+                name: avp.name.clone(),
+                avp_type,
+                m_flag,
+            };
+
+            definition.add_avp(avp_definition);
+        });
     });
 
     definition
@@ -169,6 +199,74 @@ lazy_static! {
     pub static ref DEFAULT_DICT_XML: &'static str = {
         let xml = r#"
 <diameter>
+	<application id="4" type="auth" name="Charging Control">
+		<!-- Diameter Credit Control Application -->
+		<!-- http://tools.ietf.org/html/rfc4006 -->
+
+		<command code="272" short="CC" name="Credit-Control">
+			<request>
+				<!-- http://tools.ietf.org/html/rfc4006#section-3.1 -->
+				<rule avp="Session-Id" required="true" max="1"/>
+				<rule avp="Origin-Host" required="true" max="1"/>
+				<rule avp="Origin-Realm" required="true" max="1"/>
+				<rule avp="Destination-Realm" required="true" max="1"/>
+				<rule avp="Auth-Application-Id" required="true" max="1"/>
+				<rule avp="Service-Context-Id" required="true" max="1"/>
+				<rule avp="CC-Request-Type" required="true" max="1"/>
+				<rule avp="CC-Request-Number" required="true" max="1"/>
+				<rule avp="Destination-Host" required="false" max="1"/>
+				<rule avp="User-Name" required="false" max="1"/>
+				<rule avp="CC-Sub-Session-Id" required="false" max="1"/>
+				<rule avp="Acct-Multi-Session-Id" required="false" max="1"/>
+				<rule avp="Origin-State-Id" required="false" max="1"/>
+				<rule avp="Event-Timestamp" required="false" max="1"/>
+				<rule avp="Subscription-Id" required="false" max="1"/>
+				<rule avp="Service-Identifier" required="false" max="1"/>
+				<rule avp="Termination-Cause" required="false" max="1"/>
+				<rule avp="Requested-Service-Unit" required="false" max="1"/>
+				<rule avp="Requested-Action" required="false" max="1"/>
+				<rule avp="Used-Service-Unit" required="false" max="1"/>
+				<rule avp="Multiple-Services-Indicator" required="false" max="1"/>
+				<rule avp="Multiple-Services-Credit-Control" required="false" max="1"/>
+				<rule avp="Service-Parameter-Info" required="false" max="1"/>
+				<rule avp="CC-Correlation-Id" required="false" max="1"/>
+				<rule avp="User-Equipment-Info" required="false" max="1"/>
+				<rule avp="Proxy-Info" required="false" max="1"/>
+				<rule avp="Route-Record" required="false" max="1"/>
+				<rule avp="Service-Information" required="false" max="1"/>
+			</request>
+			<answer>
+				<!-- http://tools.ietf.org/html/rfc4006#section-3.2 -->
+				<rule avp="Session-Id" required="true" max="1"/>
+				<rule avp="Result-Code" required="true" max="1"/>
+				<rule avp="Origin-Host" required="true" max="1"/>
+				<rule avp="Origin-Realm" required="true" max="1"/>
+				<rule avp="CC-Request-Type" required="true" max="1"/>
+				<rule avp="CC-Request-Number" required="true" max="1"/>
+				<rule avp="User-Name" required="false" max="1"/>
+				<rule avp="CC-Session-Failover" required="false" max="1"/>
+				<rule avp="CC-Sub-Session-Id" required="false" max="1"/>
+				<rule avp="Acct-Multi-Session-Id" required="false" max="1"/>
+				<rule avp="Origin-State-Id" required="false" max="1"/>
+				<rule avp="Event-Timestamp" required="false" max="1"/>
+				<rule avp="Granted-Service-Unit" required="false" max="1"/>
+				<rule avp="Multiple-Services-Credit-Control" required="false" max="1"/>
+				<rule avp="Cost-Information" required="false" max="1"/>
+				<rule avp="Final-Unit-Indication" required="false" max="1"/>
+				<rule avp="Check-Balance-Result" required="false" max="1"/>
+				<rule avp="Credit-Control-Failure-Handling" required="false" max="1"/>
+				<rule avp="Direct-Debiting-Failure-Handling" required="false" max="1"/>
+				<rule avp="Validity-Time" required="false" max="1"/>
+				<rule avp="Redirect-Host" required="false" max="1"/>
+				<rule avp="Redirect-Host-Usage" required="false" max="1"/>
+				<rule avp="Redirect-Max-Cache-Time" required="false" max="1"/>
+				<rule avp="Proxy-Info" required="false" max="1"/>
+				<rule avp="Route-Record" required="false" max="1"/>
+				<rule avp="Failed-AVP" required="false" max="1"/>
+			</answer>
+		</command>
+    </application>
+
     <application id="0" name="Base">
 		<avp name="Acct-Interim-Interval" code="85" must="M" may="P" must-not="V" may-encrypt="Y">
 			<data type="Unsigned32"/>
@@ -978,5 +1076,14 @@ mod tests {
         assert_eq!(dict.get_avp(258).unwrap().name, "Auth-Application-Id");
 
         println!("Total AVP definitions {}", dict.avps.len());
+
+        assert_eq!(
+            dict.get_application_id_by_name("Charging Control"),
+            Some(ApplicationId::CreditControl)
+        );
+        assert_eq!(
+            dict.get_command_code_by_name("Credit-Control"),
+            Some(CommandCode::CreditControl)
+        );
     }
 }
