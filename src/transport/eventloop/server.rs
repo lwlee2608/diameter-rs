@@ -4,7 +4,8 @@ use crate::error::Result;
 use crate::transport::Codec;
 use log::error;
 use tokio::net::TcpListener;
-use tokio::task;
+use tokio::runtime::Builder;
+use tokio::task::LocalSet;
 
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
@@ -58,39 +59,46 @@ impl DiameterServer {
             };
 
             let handler = handler.clone();
-            task::spawn_local(async move {
-                let (mut reader, mut writer) = stream.split();
-                loop {
-                    // Read and decode the request
-                    let req = match Codec::decode(&mut reader).await {
-                        Ok(req) => req,
-                        Err(e) => {
+
+            let rt = Builder::new_current_thread().enable_all().build().unwrap();
+
+            std::thread::spawn(move || {
+                let local = LocalSet::new();
+                local.spawn_local(async move {
+                    let (mut reader, mut writer) = stream.split();
+                    loop {
+                        // Read and decode the request
+                        let req = match Codec::decode(&mut reader).await {
+                            Ok(req) => req,
+                            Err(e) => {
+                                error!(
+                                    "[{}] Failed to read and decode message; err = {:?}",
+                                    peer_addr, e
+                                );
+                                return;
+                            }
+                        };
+
+                        // Process the request using the handler
+                        let res = match handler(req) {
+                            Ok(res) => res,
+                            Err(e) => {
+                                error!("[{}] Request handler error: {:?}", peer_addr, e);
+                                return;
+                            }
+                        };
+
+                        // Encode and send the response
+                        if let Err(e) = Codec::encode(&mut writer, &res).await {
                             error!(
-                                "[{}] Failed to read and decode message; err = {:?}",
+                                "[{}] Failed to encode and send response; err = {:?}",
                                 peer_addr, e
                             );
                             return;
                         }
-                    };
-
-                    // Process the request using the handler
-                    let res = match handler(req) {
-                        Ok(res) => res,
-                        Err(e) => {
-                            error!("[{}] Request handler error: {:?}", peer_addr, e);
-                            return;
-                        }
-                    };
-
-                    // Encode and send the response
-                    if let Err(e) = Codec::encode(&mut writer, &res).await {
-                        error!(
-                            "[{}] Failed to encode and send response; err = {:?}",
-                            peer_addr, e
-                        );
-                        return;
                     }
-                }
+                });
+                rt.block_on(local);
             });
         }
     }
