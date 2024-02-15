@@ -17,7 +17,7 @@
 //! use diameter::avp::UTF8String;
 //! use crate::avp::flags::M;
 //! use diameter::Result;
-//! use diameter::DiameterServer;
+//! use diameter::transport::DiameterServer;
 //! use diameter::DiameterMessage;
 //! use crate::diameter::flags;
 //!
@@ -62,7 +62,7 @@
 //! use diameter::avp::Unsigned32;
 //! use diameter::avp::UTF8String;
 //! use crate::avp::flags::M;
-//! use diameter::DiameterClient;
+//! use diameter::transport::DiameterClient;
 //! use diameter::{ApplicationId, CommandCode, DiameterMessage};
 //! use crate::diameter::flags;
 //!
@@ -92,16 +92,12 @@
 //! }
 //! ```
 pub mod avp;
-pub mod client;
 pub mod diameter;
 pub mod dictionary;
 pub mod error;
-pub mod server;
 pub mod transport;
 
 // pub use crate::avp::{Avp, AvpFlags, AvpHeader, AvpType, AvpValue};
-pub use crate::client::DiameterClient;
 pub use crate::diameter::flags;
 pub use crate::diameter::{ApplicationId, CommandCode, DiameterHeader, DiameterMessage};
 pub use crate::error::{Error, Result};
-pub use crate::server::DiameterServer;

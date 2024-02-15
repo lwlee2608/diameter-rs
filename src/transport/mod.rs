@@ -1,4 +1,12 @@
 //! Diameter Protocol Transport
+
+pub mod client;
+pub mod eventloop;
+pub mod server;
+
+pub use crate::transport::client::DiameterClient;
+pub use crate::transport::server::DiameterServer;
+
 use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
 use std::io::Cursor;
@@ -72,11 +80,11 @@ mod tests {
     use crate::avp::utf8string::UTF8String;
     use crate::avp::Avp;
     use crate::avp::Unsigned64;
-    use crate::client::DiameterClient;
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::error::Result;
-    use crate::server::DiameterServer;
+    use crate::transport::DiameterClient;
+    use crate::transport::DiameterServer;
 
     #[tokio::test]
     async fn test_diameter_transport() {
