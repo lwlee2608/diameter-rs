@@ -2,7 +2,6 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Result;
 use crate::transport::Codec;
-use log::error;
 use tokio::net::TcpListener;
 use tokio::runtime::Builder;
 use tokio::task::LocalSet;
@@ -71,10 +70,20 @@ impl DiameterServer {
                         let req = match Codec::decode(&mut reader).await {
                             Ok(req) => req,
                             Err(e) => {
-                                error!(
-                                    "[{}] Failed to read and decode message; err = {:?}",
-                                    peer_addr, e
-                                );
+                                match e {
+                                    crate::error::Error::IoError(ref e)
+                                        if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                                    {
+                                        log::info!("[{}] Connection closed by peer", peer_addr);
+                                    }
+                                    _ => {
+                                        log::error!(
+                                            "[{}] Failed to read and decode message; err = {:?}",
+                                            peer_addr,
+                                            e
+                                        );
+                                    }
+                                }
                                 return;
                             }
                         };
@@ -83,16 +92,17 @@ impl DiameterServer {
                         let res = match handler(req) {
                             Ok(res) => res,
                             Err(e) => {
-                                error!("[{}] Request handler error: {:?}", peer_addr, e);
+                                log::error!("[{}] Request handler error: {:?}", peer_addr, e);
                                 return;
                             }
                         };
 
                         // Encode and send the response
                         if let Err(e) = Codec::encode(&mut writer, &res).await {
-                            error!(
+                            log::error!(
                                 "[{}] Failed to encode and send response; err = {:?}",
-                                peer_addr, e
+                                peer_addr,
+                                e
                             );
                             return;
                         }
