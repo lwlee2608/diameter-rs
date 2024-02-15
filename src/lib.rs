@@ -95,6 +95,7 @@ pub mod avp;
 pub mod client;
 pub mod diameter;
 pub mod dictionary;
+pub mod el_client;
 pub mod error;
 pub mod server;
 pub mod transport;
