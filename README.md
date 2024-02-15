@@ -27,7 +27,7 @@ use diameter::avp::Unsigned32;
 use diameter::avp::UTF8String;
 use diameter::avp::flags::M;
 use diameter::Result;
-use diameter::DiameterServer;
+use diameter::transport::DiameterServer;
 use diameter::DiameterMessage;
 use diameter::flags;
 
@@ -73,7 +73,7 @@ use diameter::avp::Enumerated;
 use diameter::avp::Unsigned32;
 use diameter::avp::UTF8String;
 use diameter::avp::flags::M;
-use diameter::DiameterClient;
+use diameter::transport::DiameterClient;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
 use diameter::flags;
 
