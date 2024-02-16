@@ -1,6 +1,6 @@
 [package]
 name = "diameter"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 authors = ["Jason Lee<lwlee2608@gmail.com>"]
 description = "Rust Implementation of the Diameter Protocol."

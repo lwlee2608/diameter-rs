@@ -14,7 +14,7 @@ Add this crate to your Rust project by adding the following to your `Cargo.toml`
 
 ```toml
 [dependencies]
-diameter-rs = "^0.1"
+diameter-rs = "^0.3"
 ```
 
 ### Diameter Server Example
