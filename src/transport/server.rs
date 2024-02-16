@@ -2,8 +2,8 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Result;
 use crate::transport::Codec;
-use log::error;
 use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
@@ -49,7 +49,7 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
     {
         loop {
-            let (mut stream, _) = self.listener.accept().await?;
+            let (stream, _) = self.listener.accept().await?;
 
             let peer_addr = match stream.peer_addr() {
                 Ok(addr) => addr.to_string(),
@@ -58,39 +58,44 @@ impl DiameterServer {
 
             let handler = handler.clone();
             tokio::spawn(async move {
-                let (mut reader, mut writer) = stream.split();
-                loop {
-                    // Read and decode the request
-                    let req = match Codec::decode(&mut reader).await {
-                        Ok(req) => req,
-                        Err(e) => {
-                            error!(
-                                "[{}] Failed to read and decode message; err = {:?}",
-                                peer_addr, e
-                            );
-                            return;
-                        }
-                    };
-
-                    // Process the request using the handler
-                    let res = match handler(req) {
-                        Ok(res) => res,
-                        Err(e) => {
-                            error!("[{}] Request handler error: {:?}", peer_addr, e);
-                            return;
-                        }
-                    };
-
-                    // Encode and send the response
-                    if let Err(e) = Codec::encode(&mut writer, &res).await {
-                        error!(
-                            "[{}] Failed to encode and send response; err = {:?}",
-                            peer_addr, e
-                        );
-                        return;
+                match Self::handle_peer(stream, handler).await {
+                    Ok(_) => {
+                        log::info!("[{}] Connection closed", peer_addr);
+                    }
+                    Err(e) => {
+                        log::error!("Fatal error occurred: {:?}", e);
                     }
                 }
             });
+        }
+    }
+
+    async fn handle_peer<F>(mut stream: TcpStream, handler: F) -> Result<()>
+    where
+        F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
+    {
+        let (mut reader, mut writer) = stream.split();
+        loop {
+            // Read and decode the request
+            let req = match Codec::decode(&mut reader).await {
+                Ok(req) => req,
+                Err(e) => match e {
+                    crate::error::Error::IoError(ref e)
+                        if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                    {
+                        return Ok(());
+                    }
+                    _ => {
+                        return Err(e);
+                    }
+                },
+            };
+
+            // Process the request using the handler
+            let res = handler(req)?;
+
+            // Encode and send the response
+            Codec::encode(&mut writer, &res).await?;
         }
     }
 }
