@@ -4,8 +4,6 @@ use crate::error::Result;
 use crate::transport::Codec;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
-use tokio::runtime::Builder;
-use tokio::task::LocalSet;
 
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
@@ -51,19 +49,18 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
     {
         loop {
-            let (stream, _) = self.listener.accept().await?;
-
-            let peer_addr = match stream.peer_addr() {
-                Ok(addr) => addr.to_string(),
-                Err(_) => "Unknown".to_string(),
-            };
+            let (stream, peer_addr) = self.listener.accept().await?;
 
             let handler = handler.clone();
+            tokio::task::spawn_blocking(move || {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
 
-            let rt = Builder::new_current_thread().enable_all().build().unwrap();
-            std::thread::spawn(move || {
-                let local = LocalSet::new();
-                local.spawn_local(async move {
+                log::info!("[{}] Connection established", peer_addr);
+
+                rt.block_on(async move {
                     match Self::handle_peer(stream, handler).await {
                         Ok(_) => {
                             log::info!("[{}] Connection closed", peer_addr);
@@ -73,7 +70,6 @@ impl DiameterServer {
                         }
                     }
                 });
-                rt.block_on(local);
             });
         }
     }

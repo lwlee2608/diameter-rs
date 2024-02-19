@@ -49,12 +49,7 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
     {
         loop {
-            let (stream, _) = self.listener.accept().await?;
-
-            let peer_addr = match stream.peer_addr() {
-                Ok(addr) => addr.to_string(),
-                Err(_) => "Unknown".to_string(),
-            };
+            let (stream, peer_addr) = self.listener.accept().await?;
 
             let handler = handler.clone();
             tokio::spawn(async move {
