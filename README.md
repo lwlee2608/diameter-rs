@@ -2,6 +2,16 @@
 
 Rust Implementation of the Diameter Protocol.
 
+[![Crates.io][crates-badge]][crates-url]
+[![MIT licensed][mit-badge]][mit-url]
+[![Build Status][actions-badge]][actions-url]
+
+[crates-badge]: https://img.shields.io/crates/v/diameter.svg
+[crates-url]: https://crates.io/crates/diameter
+[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
+[mit-url]: LICENSE
+[actions-badge]: https://github.com/lwlee2608/diameter-rs/actions/workflows/build.yml/badge.svg
+[actions-url]: https://github.com/lwlee2608/diameter-rs/actions?query=branch%3Amaster
 
 ## Reference
 Based on [RFC 6733](https://tools.ietf.org/html/rfc6733)
