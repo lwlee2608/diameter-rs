@@ -53,7 +53,7 @@ impl DiameterServer {
 
             let handler = handler.clone();
             tokio::spawn(async move {
-                match Self::handle_peer(stream, handler).await {
+                match Self::server_loop(stream, handler).await {
                     Ok(_) => {
                         log::info!("[{}] Connection closed", peer_addr);
                     }
@@ -65,7 +65,7 @@ impl DiameterServer {
         }
     }
 
-    async fn handle_peer<F>(mut stream: TcpStream, handler: F) -> Result<()>
+    async fn server_loop<F>(mut stream: TcpStream, handler: F) -> Result<()>
     where
         F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
     {

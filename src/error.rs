@@ -1,6 +1,7 @@
 use std::fmt;
 use std::result::Result as StdResult;
 use std::sync::{MutexGuard, PoisonError};
+use tokio::sync::mpsc::error::SendError;
 
 /// Error type returned by `diameter` methods.
 #[derive(Debug)]
@@ -13,6 +14,7 @@ pub enum Error {
     IoError(std::io::Error),
     TryFromSliceError(std::array::TryFromSliceError),
     LockError(String),
+    SendError(String),
 }
 
 /// `Result` type used by `diameter`'s API.
@@ -29,6 +31,7 @@ impl fmt::Display for Error {
             Error::IoError(e) => write!(f, "{}", e),
             Error::TryFromSliceError(e) => write!(f, "{}", e),
             Error::LockError(msg) => write!(f, "{}", msg),
+            Error::SendError(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -53,5 +56,11 @@ impl From<std::array::TryFromSliceError> for Error {
 impl<'a, T> From<PoisonError<MutexGuard<'a, T>>> for Error {
     fn from(err: PoisonError<MutexGuard<'a, T>>) -> Self {
         Error::LockError(format!("Lock error: {}", err))
+    }
+}
+
+impl<T> From<SendError<T>> for Error {
+    fn from(err: SendError<T>) -> Self {
+        Error::SendError(format!("Send error: {}", err))
     }
 }

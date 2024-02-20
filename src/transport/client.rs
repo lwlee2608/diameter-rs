@@ -5,12 +5,16 @@ use crate::transport::Codec;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::channel;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
+use tokio::try_join;
 
 /// A Diameter protocol client for sending and receiving Diameter messages.
 ///
@@ -25,9 +29,11 @@ use tokio::sync::Mutex;
 
 pub struct DiameterClient {
     address: String,
-    writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
+    // writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
     seq_num: u32,
+    sender: Arc<mpsc::Sender<DiameterMessage>>,
+    receiver: Option<mpsc::Receiver<DiameterMessage>>,
 }
 // static COUNTER: AtomicU32 = AtomicU32::new(0);
 
@@ -43,11 +49,14 @@ impl DiameterClient {
     /// Returns:
     ///     A new instance of `DiameterClient`.
     pub fn new(addr: &str) -> DiameterClient {
+        let (sender, receiver) = channel(64);
         DiameterClient {
             address: addr.into(),
-            writer: None,
+            // writer: None,
             msg_caches: Arc::new(Mutex::new(HashMap::new())),
             seq_num: 0,
+            sender: Arc::new(sender),
+            receiver: Some(receiver),
         }
     }
 
@@ -61,58 +70,145 @@ impl DiameterClient {
     pub async fn connect(&mut self) -> Result<()> {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
-        let (mut reader, writer) = stream.into_split();
-        let writer = Arc::new(Mutex::new(writer));
+        let (reader, writer) = stream.into_split();
+        // let writer = Arc::new(Mutex::new(writer));
 
-        self.writer = Some(writer);
+        // self.writer = Some(writer);
+
+        let receiver = self.receiver.take().unwrap();
 
         let msg_caches = Arc::clone(&self.msg_caches);
-        tokio::spawn(async move {
-            loop {
-                match Codec::decode(&mut reader).await {
-                    Ok(res) => {
-                        if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
-                            log::error!("Failed to process response; error: {:?}", e);
-                            return;
-                        }
+        // tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            // let _ = Self::client_loop(reader, msg_caches).await;
+            // let _ = Self::send_loop(writer, receiver).await;
+
+            rt.block_on(async move {
+                let res = try_join!(
+                    Self::client_loop(reader, msg_caches),
+                    Self::send_loop(writer, receiver),
+                );
+
+                match res {
+                    Ok((_, _)) => {
+                        println!("processing done?");
                     }
-                    Err(e) => {
-                        log::error!("Failed to read message from socket; error: {:?}", e);
-                        return;
+                    Err(err) => {
+                        println!("processing failed; error = {}", err);
                     }
                 }
-            }
+            });
+
+            // loop {
+            //     match Codec::decode(&mut reader).await {
+            //         Ok(res) => {
+            //             if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
+            //                 log::error!("Failed to process response; error: {:?}", e);
+            //                 return;
+            //             }
+            //         }
+            //         Err(e) => {
+            //             log::error!("Failed to read message from socket; error: {:?}", e);
+            //             return;
+            //         }
+            //     }
+            // }
         });
 
         Ok(())
     }
 
-    async fn process_decoded_msg(
-        msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
-        res: DiameterMessage,
+    async fn send_loop(
+        mut writer: OwnedWriteHalf,
+        mut receiver: mpsc::Receiver<DiameterMessage>,
     ) -> Result<()> {
-        let hop_by_hop = res.get_hop_by_hop_id();
+        loop {
+            // log::info!("send_loop");
+            let msg = receiver.recv().await.ok_or_else(|| {
+                Error::ClientError("Failed to receive message from channel".into())
+            })?;
 
-        let sender_opt = {
-            let mut msg_caches = msg_caches.lock().await;
-
-            msg_caches.remove(&hop_by_hop)
-        };
-        match sender_opt {
-            Some(sender) => {
-                sender.send(res).map_err(|e| {
-                    Error::ClientError(format!("Failed to send response; error: {:?}", e))
-                })?;
-            }
-            None => {
-                Err(Error::ClientError(format!(
-                    "No request found for hop_by_hop_id {}",
-                    hop_by_hop
-                )))?;
-            }
-        };
-        Ok(())
+            Codec::encode(&mut writer, &msg).await?;
+        }
     }
+
+    async fn client_loop(
+        // mut stream: TcpStream,
+        mut reader: OwnedReadHalf,
+        msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+    ) -> Result<()> {
+        // let (mut reader, mut _writer) = stream.split();
+        loop {
+            // log::info!("client_loop");
+            // Decode the incoming response message
+            let res = match Codec::decode(&mut reader).await {
+                Ok(req) => req,
+                Err(e) => match e {
+                    crate::error::Error::IoError(ref e)
+                        if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+                    {
+                        return Ok(());
+                    }
+                    _ => {
+                        return Err(e);
+                    }
+                },
+            };
+
+            // Send the response to the appropriate request's caller
+            let hop_by_hop = res.get_hop_by_hop_id();
+            let sender_opt = {
+                let mut msg_caches = msg_caches.lock().await;
+                msg_caches.remove(&hop_by_hop)
+            };
+            match sender_opt {
+                Some(sender) => {
+                    sender.send(res).map_err(|e| {
+                        Error::ClientError(format!("Failed to send response; error: {:?}", e))
+                    })?;
+                }
+                None => {
+                    Err(Error::ClientError(format!(
+                        "No request found for hop_by_hop_id {}",
+                        hop_by_hop
+                    )))?;
+                }
+            };
+        }
+
+        // Ok(())
+    }
+
+    // async fn process_decoded_msg(
+    //     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+    //     res: DiameterMessage,
+    // ) -> Result<()> {
+    //     let hop_by_hop = res.get_hop_by_hop_id();
+    //
+    //     let sender_opt = {
+    //         let mut msg_caches = msg_caches.lock().await;
+    //
+    //         msg_caches.remove(&hop_by_hop)
+    //     };
+    //     match sender_opt {
+    //         Some(sender) => {
+    //             sender.send(res).map_err(|e| {
+    //                 Error::ClientError(format!("Failed to send response; error: {:?}", e))
+    //             })?;
+    //         }
+    //         None => {
+    //             Err(Error::ClientError(format!(
+    //                 "No request found for hop_by_hop_id {}",
+    //                 hop_by_hop
+    //             )))?;
+    //         }
+    //     };
+    //     Ok(())
+    // }
 
     /// Initiates a Diameter request.
     ///
@@ -124,18 +220,21 @@ impl DiameterClient {
     /// Returns:
     ///     A `Result` containing a `DiameterRequest` or an error if the client is not connected.
     pub async fn request(&mut self, req: DiameterMessage) -> Result<DiameterRequest> {
-        if let Some(writer) = &self.writer {
-            let (tx, rx) = oneshot::channel();
-            let hop_by_hop = req.get_hop_by_hop_id();
-            {
-                let mut msg_caches = self.msg_caches.lock().await;
-                msg_caches.insert(hop_by_hop, tx);
-            }
-
-            Ok(DiameterRequest::new(req, rx, Arc::clone(&writer)))
-        } else {
-            Err(Error::ClientError("Not connected".into()))
+        // if let Some(writer) = &self.writer {
+        let (tx, rx) = oneshot::channel();
+        let hop_by_hop = req.get_hop_by_hop_id();
+        {
+            let mut msg_caches = self.msg_caches.lock().await;
+            msg_caches.insert(hop_by_hop, tx);
         }
+
+        let sender = Arc::clone(&self.sender);
+
+        Ok(DiameterRequest::new(req, rx, sender))
+        // Ok(DiameterRequest::new(req, rx, Arc::clone(&writer)))
+        // } else {
+        //     Err(Error::ClientError("Not connected".into()))
+        // }
     }
 
     /// Sends a Diameter message and waits for the response.
@@ -148,6 +247,10 @@ impl DiameterClient {
     /// Returns:
     ///     A `Result` containing the response `DiameterMessage` or an error.
     pub async fn send_message(&mut self, req: DiameterMessage) -> Result<DiameterMessage> {
+        // self.sender.send(req).await?;
+        // let response = request.response().await?;
+        // Ok(response)
+
         let mut request = self.request(req).await?;
         let _ = request.send().await?;
         let response = request.response().await?;
@@ -171,9 +274,10 @@ impl DiameterClient {
 ///     receiver: A channel for receiving the response to the request.
 ///     writer: A thread-safe writer for sending the request to the server.
 pub struct DiameterRequest {
-    request: DiameterMessage,
+    request: Option<DiameterMessage>,
     receiver: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
-    writer: Arc<Mutex<OwnedWriteHalf>>,
+    sender: Arc<mpsc::Sender<DiameterMessage>>,
+    // writer: Arc<Mutex<OwnedWriteHalf>>,
 }
 
 impl DiameterRequest {
@@ -189,12 +293,14 @@ impl DiameterRequest {
     pub fn new(
         request: DiameterMessage,
         receiver: Receiver<DiameterMessage>,
-        writer: Arc<Mutex<OwnedWriteHalf>>,
+        sender: Arc<mpsc::Sender<DiameterMessage>>,
+        // writer: Arc<Mutex<OwnedWriteHalf>>,
     ) -> Self {
         DiameterRequest {
-            request,
+            request: Some(request),
             receiver: Arc::new(Mutex::new(Some(receiver))),
-            writer,
+            sender,
+            // writer,
         }
     }
 
@@ -204,9 +310,9 @@ impl DiameterRequest {
     ///
     /// Returns:
     ///     A reference to the `DiameterMessage` representing the request.
-    pub fn get_request(&self) -> &DiameterMessage {
-        &self.request
-    }
+    // pub fn get_request(&self) -> &DiameterMessage {
+    //     &self.request
+    // }
 
     /// Sends the request to the Diameter server.
     ///
@@ -215,8 +321,15 @@ impl DiameterRequest {
     /// Returns:
     ///     A `Result` indicating the success or failure of sending the request.
     pub async fn send(&mut self) -> Result<()> {
-        let mut writer = self.writer.lock().await;
-        Codec::encode(&mut writer.deref_mut(), &self.request).await
+        let request = self
+            .request
+            .take()
+            .ok_or_else(|| Error::ClientError("Request already sent or not initialized".into()))?;
+
+        self.sender.send(request).await?;
+        Ok(())
+        // let mut writer = self.writer.lock().await;
+        // Codec::encode(&mut writer.deref_mut(), &self.request).await
     }
 
     /// Waits for and returns the response to the request.
