@@ -3,10 +3,9 @@ use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
 use crate::transport::Codec;
 use std::collections::HashMap;
-use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::net::tcp::OwnedReadHalf;
-use tokio::net::tcp::OwnedWriteHalf;
+use tokio::net::tcp::ReadHalf;
+use tokio::net::tcp::WriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::channel;
@@ -68,28 +67,25 @@ impl DiameterClient {
     /// Returns:
     ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection process.
     pub async fn connect(&mut self) -> Result<()> {
-        let stream = TcpStream::connect(self.address.clone()).await?;
+        let mut stream = TcpStream::connect(self.address.clone()).await?;
 
-        let (reader, writer) = stream.into_split();
-        // let writer = Arc::new(Mutex::new(writer));
-
-        // self.writer = Some(writer);
-
-        let receiver = self.receiver.take().unwrap();
+        let receiver = self
+            .receiver
+            .take()
+            .ok_or_else(|| Error::ClientError("Failed to take receiver from the client".into()))?;
 
         let msg_caches = Arc::clone(&self.msg_caches);
-        // tokio::spawn(async move {
         tokio::task::spawn_blocking(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .unwrap();
-            // let _ = Self::client_loop(reader, msg_caches).await;
-            // let _ = Self::send_loop(writer, receiver).await;
 
             rt.block_on(async move {
+                let (reader, writer) = stream.split();
+
                 let res = try_join!(
-                    Self::client_loop(reader, msg_caches),
+                    Self::recv_loop(reader, msg_caches),
                     Self::send_loop(writer, receiver),
                 );
 
@@ -102,32 +98,16 @@ impl DiameterClient {
                     }
                 }
             });
-
-            // loop {
-            //     match Codec::decode(&mut reader).await {
-            //         Ok(res) => {
-            //             if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
-            //                 log::error!("Failed to process response; error: {:?}", e);
-            //                 return;
-            //             }
-            //         }
-            //         Err(e) => {
-            //             log::error!("Failed to read message from socket; error: {:?}", e);
-            //             return;
-            //         }
-            //     }
-            // }
         });
 
         Ok(())
     }
 
     async fn send_loop(
-        mut writer: OwnedWriteHalf,
+        mut writer: WriteHalf<'_>,
         mut receiver: mpsc::Receiver<DiameterMessage>,
     ) -> Result<()> {
         loop {
-            // log::info!("send_loop");
             let msg = receiver.recv().await.ok_or_else(|| {
                 Error::ClientError("Failed to receive message from channel".into())
             })?;
@@ -136,14 +116,11 @@ impl DiameterClient {
         }
     }
 
-    async fn client_loop(
-        // mut stream: TcpStream,
-        mut reader: OwnedReadHalf,
+    async fn recv_loop(
+        mut reader: ReadHalf<'_>,
         msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
     ) -> Result<()> {
-        // let (mut reader, mut _writer) = stream.split();
         loop {
-            // log::info!("client_loop");
             // Decode the incoming response message
             let res = match Codec::decode(&mut reader).await {
                 Ok(req) => req,

@@ -60,6 +60,7 @@ impl DiameterServer {
 
                 log::info!("[{}] Connection established", peer_addr);
 
+                // Pin to single thread, there is no benifit using multi threads here
                 rt.block_on(async move {
                     match Self::handle_peer(stream, handler).await {
                         Ok(_) => {
