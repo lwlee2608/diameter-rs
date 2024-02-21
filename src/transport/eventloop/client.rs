@@ -2,8 +2,10 @@
 use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
 use crate::transport::Codec;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::DerefMut;
+use std::rc::Rc;
 use std::sync::Arc;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
@@ -11,7 +13,6 @@ use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
-use tokio::task;
 
 /// A Diameter protocol client for sending and receiving Diameter messages.
 ///
@@ -27,7 +28,7 @@ use tokio::task;
 pub struct DiameterClient {
     address: String,
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
-    msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+    msg_caches: Rc<RefCell<HashMap<u32, Sender<DiameterMessage>>>>,
     seq_num: u32,
 }
 // static COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -47,7 +48,7 @@ impl DiameterClient {
         DiameterClient {
             address: addr.into(),
             writer: None,
-            msg_caches: Arc::new(Mutex::new(HashMap::new())),
+            msg_caches: Rc::new(RefCell::new(HashMap::new())),
             seq_num: 0,
         }
     }
@@ -67,8 +68,8 @@ impl DiameterClient {
 
         self.writer = Some(writer);
 
-        let msg_caches = Arc::clone(&self.msg_caches);
-        task::spawn_local(async move {
+        let msg_caches = Rc::clone(&self.msg_caches);
+        tokio::task::spawn_local(async move {
             loop {
                 match Codec::decode(&mut reader).await {
                     Ok(res) => {
@@ -89,16 +90,13 @@ impl DiameterClient {
     }
 
     async fn process_decoded_msg(
-        msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
+        msg_caches: Rc<RefCell<HashMap<u32, Sender<DiameterMessage>>>>,
         res: DiameterMessage,
     ) -> Result<()> {
         let hop_by_hop = res.get_hop_by_hop_id();
+        let mut msg_caches = msg_caches.borrow_mut();
+        let sender_opt = msg_caches.remove(&hop_by_hop);
 
-        let sender_opt = {
-            let mut msg_caches = msg_caches.lock().await;
-
-            msg_caches.remove(&hop_by_hop)
-        };
         match sender_opt {
             Some(sender) => {
                 sender.send(res).map_err(|e| {
@@ -128,10 +126,8 @@ impl DiameterClient {
         if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
             let hop_by_hop = req.get_hop_by_hop_id();
-            {
-                let mut msg_caches = self.msg_caches.lock().await;
-                msg_caches.insert(hop_by_hop, tx);
-            }
+            let mut msg_caches = self.msg_caches.borrow_mut();
+            msg_caches.insert(hop_by_hop, tx);
 
             Ok(DiameterRequest::new(req, rx, Arc::clone(&writer)))
         } else {
