@@ -17,10 +17,10 @@ impl Grouped {
         &self.0
     }
 
-    pub fn decode_from<R: Read + Seek>(
+    pub fn decode_from<'a, R: Read + Seek>(
         reader: &mut R,
         len: usize,
-        dictionary: &'static dictionary::Definition,
+        dictionary: &'a dictionary::Definition,
     ) -> Result<Grouped> {
         let mut avps = Vec::new();
 

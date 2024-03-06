@@ -407,9 +407,9 @@ impl Avp {
         &self.value
     }
 
-    pub fn decode_from<R: Read + Seek>(
+    pub fn decode_from<'a, R: Read + Seek>(
         reader: &mut R,
-        dictionary: &'static dictionary::Definition,
+        dictionary: &'a dictionary::Definition,
     ) -> Result<Avp> {
         let header = AvpHeader::decode_from(reader)?;
 

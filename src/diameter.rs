@@ -173,9 +173,9 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    pub fn decode_from<R: Read + Seek>(
+    pub fn decode_from<'a, R: Read + Seek>(
         reader: &mut R,
-        dictionary: &'static dictionary::Definition,
+        dictionary: &'a dictionary::Definition,
     ) -> Result<DiameterMessage> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
