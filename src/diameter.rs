@@ -173,14 +173,17 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
+    pub fn decode_from<R: Read + Seek>(
+        reader: &mut R,
+        dictionary: &'static dictionary::Definition,
+    ) -> Result<DiameterMessage> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
 
         let total_length = header.length;
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
-            let avp = Avp::decode_from(reader)?;
+            let avp = Avp::decode_from(reader, dictionary)?;
             offset += avp.get_length();
             offset += avp.get_padding() as u32;
             avps.push(avp);
@@ -454,7 +457,7 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap();
         println!("diameter message: {}", message);
 
         let avps = &message.avps;
@@ -490,6 +493,8 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_diameter_struct() {
+        // let dictionary = dictionary::Definition::new();
+
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
@@ -522,7 +527,7 @@ mod tests {
 
         // decode
         let mut cursor = Cursor::new(&encoded);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap();
 
         println!("decoded message:\n{}", message);
     }
@@ -539,7 +544,7 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap();
         println!("diameter message: {}", message);
     }
 }

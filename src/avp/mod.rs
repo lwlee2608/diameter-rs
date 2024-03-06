@@ -407,13 +407,16 @@ impl Avp {
         &self.value
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp> {
+    pub fn decode_from<R: Read + Seek>(
+        reader: &mut R,
+        dictionary: &'static dictionary::Definition,
+    ) -> Result<Avp> {
         let header = AvpHeader::decode_from(reader)?;
 
         let header_length = if header.flags.vendor { 12 } else { 8 };
         let value_length = header.length - header_length;
 
-        let avp_type = dictionary::DEFAULT_DICT
+        let avp_type = dictionary
             .get_avp_type(header.code)
             .unwrap_or(&AvpType::Unknown);
 
@@ -447,9 +450,11 @@ impl Avp {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
             AvpType::Time => AvpValue::Time(Time::decode_from(reader)?),
-            AvpType::Grouped => {
-                AvpValue::Grouped(Grouped::decode_from(reader, value_length as usize)?)
-            }
+            AvpType::Grouped => AvpValue::Grouped(Grouped::decode_from(
+                reader,
+                value_length as usize,
+                dictionary,
+            )?),
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
         };
 

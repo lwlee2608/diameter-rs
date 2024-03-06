@@ -4,6 +4,7 @@ pub mod client;
 pub mod eventloop;
 pub mod server;
 
+use crate::dictionary;
 pub use crate::transport::client::DiameterClient;
 pub use crate::transport::server::DiameterServer;
 
@@ -45,7 +46,7 @@ impl Codec {
 
         // Decode Response
         let mut cursor = Cursor::new(buffer);
-        DiameterMessage::decode_from(&mut cursor)
+        DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT)
     }
 
     /// Asynchronously encodes a DiameterMessage and writes it to a writer.

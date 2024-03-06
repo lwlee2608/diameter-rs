@@ -9,6 +9,7 @@ use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
+use diameter::dictionary;
 use diameter::flags;
 use diameter::ApplicationId;
 use diameter::CommandCode;
@@ -46,7 +47,7 @@ fn bench_decode_message(b: &mut Bencher) {
     let data = test_data_2();
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap())
     });
 }
 
@@ -54,7 +55,7 @@ fn bench_decode_message(b: &mut Bencher) {
 fn bench_encode_message(b: &mut Bencher) {
     let data = test_data_2();
     let mut cursor = Cursor::new(&data);
-    let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+    let message = DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap();
 
     let mut encoded = Vec::new();
     b.iter(|| {
@@ -71,7 +72,7 @@ fn bench_decode_cca(b: &mut Bencher) {
 
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, &dictionary::DEFAULT_DICT).unwrap())
     });
 }
 

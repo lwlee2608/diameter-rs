@@ -1,4 +1,5 @@
 use crate::avp::Avp;
+use crate::dictionary;
 use crate::error::{Error, Result};
 use std::io::Read;
 use std::io::Seek;
@@ -16,12 +17,16 @@ impl Grouped {
         &self.0
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<Grouped> {
+    pub fn decode_from<R: Read + Seek>(
+        reader: &mut R,
+        len: usize,
+        dictionary: &'static dictionary::Definition,
+    ) -> Result<Grouped> {
         let mut avps = Vec::new();
 
         let mut offset = 0;
         while offset < len {
-            let avp = Avp::decode_from(reader)?;
+            let avp = Avp::decode_from(reader, dictionary)?;
             offset += avp.get_length() as usize;
             offset += avp.get_padding() as usize;
             avps.push(avp);
@@ -81,7 +86,8 @@ mod tests {
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = std::io::Cursor::new(&encoded);
-        let avp = Grouped::decode_from(&mut cursor, encoded.len()).unwrap();
+        let avp =
+            Grouped::decode_from(&mut cursor, encoded.len(), &dictionary::DEFAULT_DICT).unwrap();
         assert_eq!(avp.avps().len(), 2);
         assert_eq!(avp.avps()[0].get_code(), 416);
         assert_eq!(avp.avps()[1].get_code(), 415);
