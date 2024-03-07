@@ -413,13 +413,8 @@ impl Avp {
         let header_length = if header.flags.vendor { 12 } else { 8 };
         let value_length = header.length - header_length;
 
-        let avp_type = dictionary::DEFAULT_DICT
-            .get_avp_type(header.code)
-            .unwrap_or(&AvpType::Unknown);
-
-        // if avp_type == &AvpType::Unknown {
-        // return Err(Error::UnknownAvpCode(header.code));
-        // }
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let avp_type = dict.get_avp_type(header.code).unwrap_or(&AvpType::Unknown);
 
         let value = match avp_type {
             AvpType::Address => {

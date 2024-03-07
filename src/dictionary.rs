@@ -5,11 +5,12 @@ use serde::Deserialize;
 use serde_xml_rs::from_str;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::sync::RwLock;
 
 use crate::avp::AvpType;
 
 #[derive(Debug)]
-pub struct Definition {
+pub struct Dictionary {
     avps: BTreeMap<u32, AvpDefinition>,
     applications: HashMap<String, ApplicationId>,
     commands: HashMap<String, CommandCode>,
@@ -23,9 +24,9 @@ pub struct AvpDefinition {
     pub m_flag: bool,
 }
 
-impl Definition {
-    pub fn new() -> Definition {
-        Definition {
+impl Dictionary {
+    pub fn new() -> Self {
+        Dictionary {
             avps: BTreeMap::new(),
             applications: HashMap::new(),
             commands: HashMap::new(),
@@ -134,11 +135,11 @@ struct Item {
     name: String,
 }
 
-pub fn parse(xml: &str) -> Definition {
+pub fn parse(xml: &str) -> Dictionary {
     let dict: Diameter = from_str(xml).unwrap();
 
-    // TODO Definition may need to include avp that matches its application and command code
-    let mut definition = Definition::new();
+    // TODO Dictionary may need to include avp that matches its application and command code
+    let mut definition = Dictionary::new();
 
     dict.applications.iter().for_each(|app| {
         let app_id = app.id.parse::<u32>().unwrap();
@@ -192,9 +193,9 @@ pub fn parse(xml: &str) -> Definition {
 }
 
 lazy_static! {
-    pub static ref DEFAULT_DICT: Definition = {
+    pub static ref DEFAULT_DICT: RwLock<Dictionary> = {
         let xml = &DEFAULT_DICT_XML;
-        parse(xml)
+        RwLock::new(parse(xml))
     };
     pub static ref DEFAULT_DICT_XML: &'static str = {
         let xml = r#"
@@ -1273,7 +1274,8 @@ mod tests {
 
     #[test]
     fn test_default_dict() {
-        let dict = &DEFAULT_DICT;
+        let dict = &DEFAULT_DICT.read().unwrap();
+
         assert_eq!(dict.get_avp(416).unwrap().name, "CC-Request-Type");
         assert_eq!(dict.get_avp(264).unwrap().name, "Origin-Host");
         assert_eq!(dict.get_avp(263).unwrap().name, "Session-Id");

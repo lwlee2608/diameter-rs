@@ -362,7 +362,9 @@ impl fmt::Display for ApplicationId {
 
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let avp_name = dictionary::DEFAULT_DICT
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+
+        let avp_name = dict
             .get_avp_name(self.get_code() as u32)
             .unwrap_or("Unknown");
 
