@@ -414,7 +414,9 @@ impl Avp {
         let value_length = header.length - header_length;
 
         let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let avp_type = dict.get_avp_type(header.code).unwrap_or(&AvpType::Unknown);
+        let avp_type = dict
+            .get_avp_type(header.code, header.vendor_id)
+            .unwrap_or(&AvpType::Unknown);
 
         let value = match avp_type {
             AvpType::Address => {

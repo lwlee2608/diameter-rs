@@ -53,6 +53,7 @@ impl DiameterServer {
 
             let handler = handler.clone();
             tokio::spawn(async move {
+                log::info!("[{}] Connection established", peer_addr);
                 match Self::handle_peer(stream, handler).await {
                     Ok(_) => {
                         log::info!("[{}] Connection closed", peer_addr);

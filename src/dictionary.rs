@@ -11,9 +11,15 @@ use crate::avp::AvpType;
 
 #[derive(Debug)]
 pub struct Dictionary {
-    avps: BTreeMap<u32, AvpDefinition>,
+    avps: BTreeMap<AvpKey, AvpDefinition>,
     applications: HashMap<String, ApplicationId>,
     commands: HashMap<String, CommandCode>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum AvpKey {
+    Code(u32),
+    CodeAndVendor(u32, u32),
 }
 
 #[derive(Debug)]
@@ -35,11 +41,24 @@ impl Dictionary {
     }
 
     pub fn add_avp(&mut self, avp: AvpDefinition) {
-        self.avps.insert(avp.code, avp);
+        let code: u32 = avp.code;
+        match avp.vendor_id {
+            Some(vendor_id) => {
+                self.avps
+                    .insert(AvpKey::CodeAndVendor(code, vendor_id), avp);
+            }
+            None => {
+                self.avps.insert(AvpKey::Code(code), avp);
+            }
+        }
     }
 
-    pub fn get_avp(&self, code: u32) -> Option<&AvpDefinition> {
-        self.avps.get(&code)
+    pub fn get_avp(&self, code: u32, vendor_id: Option<u32>) -> Option<&AvpDefinition> {
+        let key = match vendor_id {
+            Some(vendor_id) => AvpKey::CodeAndVendor(code, vendor_id),
+            None => AvpKey::Code(code),
+        };
+        self.avps.get(&key)
     }
 
     pub fn get_avp_by_name(&self, name: &str) -> Option<&AvpDefinition> {
@@ -47,15 +66,23 @@ impl Dictionary {
         self.avps.values().find(|avp| avp.name == name)
     }
 
-    pub fn get_avp_type(&self, code: u32) -> Option<&AvpType> {
-        match self.avps.get(&code) {
+    pub fn get_avp_type(&self, code: u32, vendor_id: Option<u32>) -> Option<&AvpType> {
+        let key = match vendor_id {
+            Some(vendor_id) => AvpKey::CodeAndVendor(code, vendor_id),
+            None => AvpKey::Code(code),
+        };
+        match self.avps.get(&key) {
             Some(avp) => Some(&avp.avp_type),
             None => None,
         }
     }
 
-    pub fn get_avp_name(&self, code: u32) -> Option<&str> {
-        match self.avps.get(&code) {
+    pub fn get_avp_name(&self, code: u32, vendor_id: Option<u32>) -> Option<&str> {
+        let key = match vendor_id {
+            Some(vendor_id) => AvpKey::CodeAndVendor(code, vendor_id),
+            None => AvpKey::Code(code),
+        };
+        match self.avps.get(&key) {
             Some(avp) => Some(&avp.name),
             None => None,
         }
@@ -1285,11 +1312,11 @@ mod tests {
     fn test_default_dict() {
         let dict = DEFAULT_DICT.read().unwrap();
 
-        assert_eq!(dict.get_avp(416).unwrap().name, "CC-Request-Type");
-        assert_eq!(dict.get_avp(264).unwrap().name, "Origin-Host");
-        assert_eq!(dict.get_avp(263).unwrap().name, "Session-Id");
-        assert_eq!(dict.get_avp(1).unwrap().name, "User-Name");
-        assert_eq!(dict.get_avp(258).unwrap().name, "Auth-Application-Id");
+        assert_eq!(dict.get_avp(416, None).unwrap().name, "CC-Request-Type");
+        assert_eq!(dict.get_avp(264, None).unwrap().name, "Origin-Host");
+        assert_eq!(dict.get_avp(263, None).unwrap().name, "Session-Id");
+        assert_eq!(dict.get_avp(1, None).unwrap().name, "User-Name");
+        assert_eq!(dict.get_avp(258, None).unwrap().name, "Auth-Application-Id");
 
         println!("Total AVP definitions {}", dict.avps.len());
 
@@ -1320,7 +1347,6 @@ mod tests {
             m_flag: true,
         });
 
-        // TODO need to get avp by code + vendor_id
-        assert_eq!(dict.get_avp(602).unwrap().name, "Server-Name");
+        assert_eq!(dict.get_avp(602, Some(10415)).unwrap().name, "Server-Name");
     }
 }

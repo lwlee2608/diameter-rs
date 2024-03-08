@@ -365,7 +365,7 @@ impl fmt::Display for Avp {
         let dict = dictionary::DEFAULT_DICT.read().unwrap();
 
         let avp_name = dict
-            .get_avp_name(self.get_code() as u32)
+            .get_avp_name(self.get_code() as u32, self.get_vendor_id())
             .unwrap_or("Unknown");
 
         let vendor_id = match self.get_vendor_id() {
@@ -445,7 +445,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x04, // application_id
             0x00, 0x00, 0x00, 0x03, // hop_by_hop_id
             0x00, 0x00, 0x00, 0x04, // end_to_end_id
-            0x00, 0x00, 0x02, 0x3B, // avp code
+            0x00, 0x00, 0x01, 0x9F, // avp code
             0x40, 0x00, 0x00, 0x0C, // flags, length
             0x00, 0x00, 0x04, 0xB0, // value
             0x00, 0x00, 0x00, 0x1E, // avp code
@@ -462,14 +462,14 @@ mod tests {
         let avps = &message.avps;
         assert_eq!(avps.len(), 2);
         let avp0 = &avps[0];
-        assert_eq!(avp0.get_code(), 571);
+        assert_eq!(avp0.get_code(), 415);
         assert_eq!(avp0.get_length(), 12);
         assert_eq!(avp0.get_flags().vendor, false);
         assert_eq!(avp0.get_flags().mandatory, true);
         assert_eq!(avp0.get_flags().private, false);
         assert_eq!(avp0.get_vendor_id(), None);
         match avp0.get_value() {
-            AvpValue::Integer32(ref v) => assert_eq!(v.value(), 1200),
+            AvpValue::Unsigned32(ref v) => assert_eq!(v.value(), 1200),
             _ => panic!("unexpected avp type"),
         }
         let avp1 = &avps[1];
