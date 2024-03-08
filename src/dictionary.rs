@@ -19,6 +19,7 @@ pub struct Dictionary {
 #[derive(Debug)]
 pub struct AvpDefinition {
     pub code: u32,
+    pub vendor_id: Option<u32>,
     pub name: String,
     pub avp_type: AvpType,
     pub m_flag: bool,
@@ -118,6 +119,8 @@ struct Avp {
     must_not: Option<String>,
     #[serde(rename = "may-encrypt")]
     may_encrypt: Option<String>,
+    #[serde(rename = "vendor-id")]
+    vendor_id: Option<String>,
     data: Data,
 }
 
@@ -178,8 +181,14 @@ pub fn parse(xml: &str) -> Dictionary {
                 _ => false,
             };
 
+            let vendor_id = match avp.vendor_id {
+                Some(ref s) => Some(s.parse::<u32>().unwrap()),
+                None => None,
+            };
+
             let avp_definition = AvpDefinition {
                 code: avp.code.parse::<u32>().unwrap(),
+                vendor_id,
                 name: avp.name.clone(),
                 avp_type,
                 m_flag,
@@ -1274,7 +1283,7 @@ mod tests {
 
     #[test]
     fn test_default_dict() {
-        let dict = &DEFAULT_DICT.read().unwrap();
+        let dict = DEFAULT_DICT.read().unwrap();
 
         assert_eq!(dict.get_avp(416).unwrap().name, "CC-Request-Type");
         assert_eq!(dict.get_avp(264).unwrap().name, "Origin-Host");
@@ -1292,5 +1301,26 @@ mod tests {
             dict.get_command_code_by_name("Credit-Control"),
             Some(CommandCode::CreditControl)
         );
+
+        let timezone_offset_avp = dict.get_avp_by_name("Timezone-Offset").unwrap();
+
+        assert_eq!(timezone_offset_avp.code, 571);
+        assert_eq!(timezone_offset_avp.vendor_id, Some(10415));
+    }
+
+    #[test]
+    fn test_load_extra() {
+        let mut dict = DEFAULT_DICT.write().unwrap();
+
+        dict.add_avp(AvpDefinition {
+            code: 602,
+            vendor_id: Some(10415),
+            avp_type: AvpType::UTF8String,
+            name: "Server-Name".into(),
+            m_flag: true,
+        });
+
+        // TODO need to get avp by code + vendor_id
+        assert_eq!(dict.get_avp(602).unwrap().name, "Server-Name");
     }
 }
