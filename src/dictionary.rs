@@ -40,6 +40,10 @@ impl Dictionary {
         }
     }
 
+    pub fn load_xml(&mut self, xml: &str) {
+        parse(xml, self);
+    }
+
     pub fn add_avp(&mut self, avp: AvpDefinition) {
         let code: u32 = avp.code;
         match avp.vendor_id {
@@ -165,21 +169,20 @@ struct Item {
     name: String,
 }
 
-pub fn parse(xml: &str) -> Dictionary {
+pub fn parse(xml: &str, dictionary: &mut Dictionary) {
     let dict: Diameter = from_str(xml).unwrap();
 
-    // TODO Dictionary may need to include avp that matches its application and command code
-    let mut definition = Dictionary::new();
+    // TODO Dictionary need to include avp that matches its application and command code
 
     dict.applications.iter().for_each(|app| {
         let app_id = app.id.parse::<u32>().unwrap();
         let app_id: ApplicationId = ApplicationId::from_u32(app_id).unwrap();
-        definition.applications.insert(app.name.clone(), app_id);
+        dictionary.applications.insert(app.name.clone(), app_id);
 
         app.commands.iter().for_each(|cmd| {
             let cmd_code = cmd.code.parse::<u32>().unwrap();
             let cmd_code: CommandCode = CommandCode::from_u32(cmd_code).unwrap();
-            definition.commands.insert(cmd.name.clone(), cmd_code);
+            dictionary.commands.insert(cmd.name.clone(), cmd_code);
         });
 
         app.avps.iter().for_each(|avp| {
@@ -221,17 +224,17 @@ pub fn parse(xml: &str) -> Dictionary {
                 m_flag,
             };
 
-            definition.add_avp(avp_definition);
+            dictionary.add_avp(avp_definition);
         });
     });
-
-    definition
 }
 
 lazy_static! {
     pub static ref DEFAULT_DICT: RwLock<Dictionary> = {
         let xml = &DEFAULT_DICT_XML;
-        RwLock::new(parse(xml))
+        let mut dictionary = Dictionary::new();
+        parse(xml, &mut dictionary);
+        RwLock::new(dictionary)
     };
     pub static ref DEFAULT_DICT_XML: &'static str = {
         let xml = r#"
@@ -1336,7 +1339,7 @@ mod tests {
     }
 
     #[test]
-    fn test_load_extra() {
+    fn test_add_avp() {
         let mut dict = DEFAULT_DICT.write().unwrap();
 
         dict.add_avp(AvpDefinition {
@@ -1348,5 +1351,73 @@ mod tests {
         });
 
         assert_eq!(dict.get_avp(602, Some(10415)).unwrap().name, "Server-Name");
+    }
+
+    #[test]
+    fn test_load_additional_xml() {
+        let mut dict = DEFAULT_DICT.write().unwrap();
+
+        let xml = r#"
+<diameter>
+	<application id="16777302" type="auth" name="Diameter Sy">
+		<!-- Diameter Credit Control Application -->
+		<!-- http://tools.ietf.org/html/rfc4006 -->
+
+		<command code="8388635" short="SL" name="Spending-Limit">
+			<request>
+				<!-- http://tools.ietf.org/html/rfc4006#section-3.1 -->
+				<rule avp="Session-Id" required="true" max="1"/>
+				<rule avp="Auth-Application-Id" required="true" max="1"/>
+				<rule avp="Origin-Host" required="true" max="1"/>
+				<rule avp="Origin-Realm" required="true" max="1"/>
+				<rule avp="Destination-Realm" required="true" max="1"/>
+				<rule avp="SL-Request-Type" required="true" max="1"/>
+				<rule avp="Destination-Host" required="false" max="1"/>
+				<rule avp="Origin-State-Id" required="false" max="1"/>
+				<rule avp="Subscription-Id" required="false" max="1"/>
+				<rule avp="Policy-Counter-Identifier" required="false" max="1"/>
+				<rule avp="Proxy-Info" required="false" max="1"/>
+				<rule avp="Route-Record" required="false" max="1"/>
+				<rule avp="Service-Information" required="false" max="1"/>
+			</request>
+			<answer>
+				<!-- http://tools.ietf.org/html/rfc4006#section-3.2 -->
+				<rule avp="Session-Id" required="true" max="1"/>
+				<rule avp="Result-Code" required="true" max="1"/>
+				<rule avp="Origin-Host" required="true" max="1"/>
+				<rule avp="Origin-Realm" required="true" max="1"/>
+				<rule avp="Origin-State-Id" required="false" max="1"/>
+				<rule avp="Redirect-Host" required="false" max="1"/>
+				<rule avp="Redirect-Host-Usage" required="false" max="1"/>
+				<rule avp="Redirect-Max-Cache-Time" required="false" max="1"/>
+				<rule avp="Proxy-Info" required="false" max="1"/>
+				<rule avp="Route-Record" required="false" max="1"/>
+				<rule avp="Failed-AVP" required="false" max="1"/>
+			</answer>
+		</command>
+
+		<avp name="SL-Request-Type" code="2904" must="M" may="P" must-not="V" may-encrypt="-">
+			<data type="Enumerated">
+				<item code="0" name="INITIAL_REQUEST"/>
+				<item code="1" name="INTERMEDIATE_REQUEST"/>
+			</data>
+		</avp>
+		
+    </application>
+</diameter>
+    "#;
+
+        dict.load_xml(xml);
+
+        assert_eq!(
+            dict.get_application_id_by_name("Diameter Sy"),
+            Some(ApplicationId::Sy)
+        );
+        assert_eq!(
+            dict.get_command_code_by_name("Spending-Limit"),
+            Some(CommandCode::SpendingLimit)
+        );
+
+        assert_eq!(dict.get_avp(2904, None).unwrap().name, "SL-Request-Type");
     }
 }
