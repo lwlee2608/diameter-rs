@@ -1,5 +1,6 @@
 use diameter::avp;
 use diameter::avp::flags::M;
+use diameter::avp::Address;
 use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
@@ -15,13 +16,32 @@ async fn main() {
     let mut client = DiameterClient::new("localhost:3868");
     let _ = client.connect().await;
 
-    // Create a Credit-Control-Request (CCR) Diameter message
+    // Send a Capabilities-Exchange-Request (CER) Diameter message
+    let seq_num = client.get_next_seq_num();
+    let mut cer = DiameterMessage::new(
+        CommandCode::CapabilitiesExchange,
+        ApplicationId::Common,
+        flags::REQUEST,
+        seq_num,
+        seq_num,
+    );
+    cer.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    cer.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    cer.add_avp(avp!(257, None, M, Address::new(vec![0, 1, 127, 0, 0, 1])));
+    cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
+    cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
+
+    let cea = client.send_message(cer).await.unwrap();
+    println!("Received rseponse: {}", cea);
+
+    // Send a Credit-Control-Request (CCR) Diameter message
+    let seq_num = client.get_next_seq_num();
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
         flags::REQUEST,
-        1123158611,
-        3102381851,
+        seq_num,
+        seq_num,
     );
     ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
     ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
@@ -29,7 +49,6 @@ async fn main() {
     ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
     ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
 
-    // Send the CCR message to the server and wait for a response
     let cca = client.send_message(ccr).await.unwrap();
-    println!("Received response: {}", cca);
+    println!("Received rseponse: {}", cca);
 }
