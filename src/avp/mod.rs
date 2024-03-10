@@ -140,24 +140,7 @@ pub enum AvpValue {
 
 impl fmt::Display for AvpValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            AvpValue::Address(avp) => avp.fmt(f),
-            AvpValue::AddressIPv4(avp) => avp.fmt(f),
-            AvpValue::AddressIPv6(avp) => avp.fmt(f),
-            AvpValue::Float32(avp) => avp.fmt(f),
-            AvpValue::Float64(avp) => avp.fmt(f),
-            AvpValue::Enumerated(avp) => avp.fmt(f),
-            AvpValue::Integer32(avp) => avp.fmt(f),
-            AvpValue::Integer64(avp) => avp.fmt(f),
-            AvpValue::Unsigned32(avp) => avp.fmt(f),
-            AvpValue::Unsigned64(avp) => avp.fmt(f),
-            AvpValue::UTF8String(avp) => avp.fmt(f),
-            AvpValue::OctetString(avp) => avp.fmt(f),
-            AvpValue::Identity(avp) => avp.fmt(f),
-            AvpValue::DiameterURI(avp) => avp.fmt(f),
-            AvpValue::Time(avp) => avp.fmt(f),
-            AvpValue::Grouped(avp) => avp.fmt(f),
-        }
+        self.fmt(f, 0)
     }
 }
 
@@ -201,6 +184,27 @@ impl AvpValue {
             AvpValue::DiameterURI(_) => "DiameterURI",
             AvpValue::Time(_) => "Time",
             AvpValue::Grouped(_) => "Grouped",
+        }
+    }
+
+    fn fmt(&self, f: &mut fmt::Formatter, depth: usize) -> fmt::Result {
+        match self {
+            AvpValue::Address(avp) => write!(f, "{}", avp),
+            AvpValue::AddressIPv4(avp) => write!(f, "{}", avp),
+            AvpValue::AddressIPv6(avp) => write!(f, "{}", avp),
+            AvpValue::Float32(avp) => write!(f, "{}", avp),
+            AvpValue::Float64(avp) => write!(f, "{}", avp),
+            AvpValue::Enumerated(avp) => write!(f, "{}", avp),
+            AvpValue::Integer32(avp) => write!(f, "{}", avp),
+            AvpValue::Integer64(avp) => write!(f, "{}", avp),
+            AvpValue::Unsigned32(avp) => write!(f, "{}", avp),
+            AvpValue::Unsigned64(avp) => write!(f, "{}", avp),
+            AvpValue::UTF8String(avp) => write!(f, "{}", avp),
+            AvpValue::OctetString(avp) => write!(f, "{}", avp),
+            AvpValue::Identity(avp) => write!(f, "{}", avp),
+            AvpValue::DiameterURI(avp) => write!(f, "{}", avp),
+            AvpValue::Time(avp) => write!(f, "{}", avp),
+            AvpValue::Grouped(avp) => avp.fmt(f, depth),
         }
     }
 }
@@ -607,6 +611,51 @@ impl Avp {
             AvpValue::Grouped(avp) => Some(avp),
             _ => None,
         }
+    }
+
+    pub fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+        let indent = "  ".repeat(depth.max(0));
+
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+
+        let avp_name = dict
+            .get_avp_name(self.get_code() as u32, self.get_vendor_id())
+            .unwrap_or("Unknown");
+
+        let avp_name = format!("{}{}", indent, avp_name);
+
+        let vendor_id = match self.get_vendor_id() {
+            Some(v) => v.to_string(),
+            None => "".to_string(),
+        };
+
+        write!(
+            f,
+            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  ",
+            avp_name,
+            vendor_id,
+            self.get_code(),
+            get_bool_unicode(self.get_flags().vendor),
+            get_bool_unicode(self.get_flags().mandatory),
+            get_bool_unicode(self.get_flags().private),
+            self.get_value().get_type_name(),
+        )?;
+
+        self.get_value().fmt(f, depth)
+    }
+}
+
+fn get_bool_unicode(v: bool) -> &'static str {
+    if v {
+        "✓"
+    } else {
+        "✗"
+    }
+}
+
+impl fmt::Display for Avp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt(f, 0)
     }
 }
 

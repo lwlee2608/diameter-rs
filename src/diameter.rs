@@ -31,7 +31,6 @@
 //! ```
 
 use crate::avp::Avp;
-use crate::dictionary;
 use crate::error::{Error, Result};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -206,6 +205,24 @@ impl DiameterMessage {
 
         Ok(())
     }
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+        let indent = "  ".repeat(depth.max(0));
+        self.header.fmt(f, depth)?;
+        write!(f, "\n")?;
+        write!(
+            f,
+            "  {}{:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}\n",
+            indent, "AVP", "Vendor", "Code", "V", "M", "P", "Type", "Value"
+        )?;
+
+        for avp in &self.avps {
+            avp.fmt(f, depth)?;
+            write!(f, "\n")?;
+        }
+
+        Ok(())
+    }
 }
 
 impl DiameterHeader {
@@ -245,6 +262,47 @@ impl DiameterHeader {
             hop_by_hop_id,
             end_to_end_id,
         })
+    }
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
+        let indent = "  ".repeat(depth.max(0));
+        let request_flag = if self.flags & flags::REQUEST != 0 {
+            "Request"
+        } else {
+            "Answer"
+        };
+        let error_flag = if self.flags & flags::ERROR != 0 {
+            "Error"
+        } else {
+            ""
+        };
+        let proxyable_flag = if self.flags & flags::PROXYABLE != 0 {
+            "Proxyable"
+        } else {
+            ""
+        };
+        let retransmit_flag = if self.flags & flags::RETRANSMIT != 0 {
+            "Retransmit"
+        } else {
+            ""
+        };
+
+        write!(
+            f,
+            "{}{} {}({}) {}({}) {}{}{}{} {}, {}",
+            indent,
+            self.version,
+            self.code,
+            self.code as u32,
+            self.application_id,
+            self.application_id as u32,
+            request_flag,
+            error_flag,
+            proxyable_flag,
+            retransmit_flag,
+            self.hop_by_hop_id,
+            self.end_to_end_id
+        )
     }
 
     /// Encodes the Diameter header to the given writer.
@@ -292,59 +350,13 @@ impl ApplicationId {
 
 impl fmt::Display for DiameterMessage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\n", self.header)?;
-        write!(
-            f,
-            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}\n",
-            "AVP", "Vendor", "Code", "V", "M", "P", "Type", "Value"
-        )?;
-
-        for avp in &self.avps {
-            write!(f, "{}\n", avp)?;
-        }
-
-        Ok(())
+        self.fmt(f, 0)
     }
 }
 
 impl fmt::Display for DiameterHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let request_flag = if self.flags & flags::REQUEST != 0 {
-            "Request"
-        } else {
-            "Answer"
-        };
-        let error_flag = if self.flags & flags::ERROR != 0 {
-            "Error"
-        } else {
-            ""
-        };
-        let proxyable_flag = if self.flags & flags::PROXYABLE != 0 {
-            "Proxyable"
-        } else {
-            ""
-        };
-        let retransmit_flag = if self.flags & flags::RETRANSMIT != 0 {
-            "Retransmit"
-        } else {
-            ""
-        };
-
-        write!(
-            f,
-            "{} {}({}) {}({}) {}{}{}{} {}, {}",
-            self.version,
-            self.code,
-            self.code as u32,
-            self.application_id,
-            self.application_id as u32,
-            request_flag,
-            error_flag,
-            proxyable_flag,
-            retransmit_flag,
-            self.hop_by_hop_id,
-            self.end_to_end_id
-        )
+        self.fmt(f, 0)
     }
 }
 
@@ -357,42 +369,6 @@ impl fmt::Display for CommandCode {
 impl fmt::Display for ApplicationId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-impl fmt::Display for Avp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-
-        let avp_name = dict
-            .get_avp_name(self.get_code() as u32, self.get_vendor_id())
-            .unwrap_or("Unknown");
-
-        let vendor_id = match self.get_vendor_id() {
-            Some(v) => v.to_string(),
-            None => "".to_string(),
-        };
-
-        write!(
-            f,
-            "  {:<40} {:>8} {:>5}  {} {} {}  {:<16}  {}",
-            avp_name,
-            vendor_id,
-            self.get_code(),
-            get_bool_unicode(self.get_flags().vendor),
-            get_bool_unicode(self.get_flags().mandatory),
-            get_bool_unicode(self.get_flags().private),
-            self.get_value().get_type_name(),
-            self.get_value().to_string()
-        )
-    }
-}
-
-fn get_bool_unicode(v: bool) -> &'static str {
-    if v {
-        "✓"
-    } else {
-        "✗"
     }
 }
 

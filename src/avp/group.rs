@@ -50,16 +50,19 @@ impl Grouped {
             .map(|avp| avp.get_length() + avp.get_padding() as u32)
             .sum()
     }
-}
 
-// TODO implement indent
-impl std::fmt::Display for Grouped {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "\n")?;
+    pub fn fmt(&self, f: &mut std::fmt::Formatter<'_>, depth: usize) -> std::fmt::Result {
         for avp in &self.0 {
-            write!(f, "{}\n", avp)?;
+            write!(f, "\n")?;
+            avp.fmt(f, depth + 1)?;
         }
         Ok(())
+    }
+}
+
+impl std::fmt::Display for Grouped {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.fmt(f, 0)
     }
 }
 
