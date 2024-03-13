@@ -1,6 +1,7 @@
 use diameter::avp;
 use diameter::avp::flags::M;
 use diameter::avp::Address;
+use diameter::avp::AddressValue;
 use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
@@ -9,6 +10,7 @@ use diameter::avp::Unsigned32;
 use diameter::flags;
 use diameter::transport::DiameterClient;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
+use std::net::Ipv4Addr;
 
 #[tokio::main]
 async fn main() {
@@ -31,7 +33,7 @@ async fn main() {
         257,
         None,
         M,
-        Address::from_ipv4_addr(std::net::Ipv4Addr::new(127, 0, 0, 1))
+        Address::new(AddressValue::IPv4(Ipv4Addr::new(127, 0, 0, 1)))
     ));
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));

@@ -53,6 +53,7 @@ use std::io::SeekFrom;
 use std::io::Write;
 
 pub use crate::avp::address::Address;
+pub use crate::avp::address::AddressValue;
 pub use crate::avp::enumerated::Enumerated;
 pub use crate::avp::float32::Float32;
 pub use crate::avp::float64::Float64;
