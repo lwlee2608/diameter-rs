@@ -9,27 +9,17 @@ use std::net::Ipv6Addr;
 use super::octetstring::OctetString;
 
 #[derive(Debug, Clone)]
-pub enum AddressValue {
+pub enum Value {
     IPv4(Ipv4Addr),
     IPv6(Ipv6Addr),
     E164(OctetString), // TODO
 }
 
-impl fmt::Display for AddressValue {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            AddressValue::IPv4(ip) => write!(f, "{}", ip),
-            AddressValue::IPv6(ip) => write!(f, "{}", ip),
-            AddressValue::E164(octet) => write!(f, "{}", octet),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct Address(AddressValue);
+pub struct Address(Value);
 
 impl Address {
-    pub fn new(value: AddressValue) -> Address {
+    pub fn new(value: Value) -> Address {
         Address(value)
     }
 
@@ -44,7 +34,7 @@ impl Address {
                 let mut b = [0; 4];
                 reader.read_exact(&mut b)?;
                 let ip = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
-                Address(AddressValue::IPv4(ip))
+                Address(Value::IPv4(ip))
             }
             [0, 2] => {
                 if len != 18 {
@@ -62,7 +52,7 @@ impl Address {
                     u16::from_be_bytes([b[12], b[13]]),
                     u16::from_be_bytes([b[14], b[15]]),
                 );
-                Address(AddressValue::IPv6(ip))
+                Address(Value::IPv6(ip))
             }
             [0, 8] => {
                 todo!("E164 not implemented")
@@ -74,24 +64,34 @@ impl Address {
 
     pub fn encode_to<W: Write>(&self, writer: &mut W) -> Result<()> {
         match &self.0 {
-            AddressValue::IPv4(ip) => {
+            Value::IPv4(ip) => {
                 writer.write_all(&[0, 1])?;
                 writer.write_all(&ip.octets())?;
             }
-            AddressValue::IPv6(ip) => {
+            Value::IPv6(ip) => {
                 writer.write_all(&[0, 2])?;
                 writer.write_all(&ip.octets())?;
             }
-            AddressValue::E164(_) => todo!(),
+            Value::E164(_) => todo!(),
         };
         Ok(())
     }
 
     pub fn length(&self) -> u32 {
         match &self.0 {
-            AddressValue::IPv4(_) => 6,
-            AddressValue::IPv6(_) => 18,
-            AddressValue::E164(_) => todo!(),
+            Value::IPv4(_) => 6,
+            Value::IPv6(_) => 18,
+            Value::E164(_) => todo!(),
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::IPv4(ip) => write!(f, "{}", ip),
+            Value::IPv6(ip) => write!(f, "{}", ip),
+            Value::E164(octet) => write!(f, "{}", octet),
         }
     }
 }
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_encode_decode_ipv4() {
         let addr = Ipv4Addr::new(127, 0, 0, 1);
-        let avp = Address::new(AddressValue::IPv4(addr));
+        let avp = Address::new(Value::IPv4(addr));
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn test_encode_decode_ipv6() {
         let addr = Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1);
-        let avp = Address::new(AddressValue::IPv6(addr));
+        let avp = Address::new(Value::IPv6(addr));
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);

@@ -1,7 +1,7 @@
 use diameter::avp;
+use diameter::avp::address;
 use diameter::avp::flags::M;
 use diameter::avp::Address;
-use diameter::avp::AddressValue;
 use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
@@ -33,7 +33,7 @@ async fn main() {
         257,
         None,
         M,
-        Address::new(AddressValue::IPv4(Ipv4Addr::new(127, 0, 0, 1)))
+        Address::new(address::Value::IPv4(Ipv4Addr::new(127, 0, 0, 1)))
     ));
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
