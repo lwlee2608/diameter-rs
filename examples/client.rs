@@ -27,7 +27,12 @@ async fn main() {
     );
     cer.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
     cer.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    cer.add_avp(avp!(257, None, M, Address::new(vec![0, 1, 127, 0, 0, 1])));
+    cer.add_avp(avp!(
+        257,
+        None,
+        M,
+        Address::from_ipv4_addr(std::net::Ipv4Addr::new(127, 0, 0, 1))
+    ));
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
 
