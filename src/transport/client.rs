@@ -240,39 +240,3 @@ impl DiameterRequest {
         Ok(res)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::avp;
-    use crate::avp::enumerated::Enumerated;
-    use crate::avp::flags::M;
-    use crate::avp::identity::Identity;
-    use crate::avp::unsigned32::Unsigned32;
-    use crate::avp::utf8string::UTF8String;
-    use crate::avp::Avp;
-    use crate::diameter::flags;
-    use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
-
-    #[ignore]
-    #[tokio::test]
-    async fn test_diameter_client() {
-        let mut ccr = DiameterMessage::new(
-            CommandCode::CreditControl,
-            ApplicationId::CreditControl,
-            flags::REQUEST,
-            1123158610,
-            3102381851,
-        );
-        ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-        ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-        ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-        ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-        ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-
-        let mut client = DiameterClient::new("localhost:3868");
-        let _ = client.connect().await;
-        let response = client.send_message(ccr).await.unwrap();
-        println!("Response: {}", response);
-    }
-}

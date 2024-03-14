@@ -23,6 +23,18 @@ impl Address {
         Address(value)
     }
 
+    pub fn from_ipv4(ip: Ipv4Addr) -> Address {
+        Address(Value::IPv4(ip))
+    }
+
+    pub fn from_ipv6(ip: Ipv6Addr) -> Address {
+        Address(Value::IPv6(ip))
+    }
+
+    pub fn from_e164(octet: OctetString) -> Address {
+        Address(Value::E164(octet))
+    }
+
     pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<Address> {
         let mut b = [0; 2];
         reader.read_exact(&mut b)?;
@@ -125,7 +137,7 @@ mod tests {
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = Cursor::new(&encoded);
-        let avp_decoded = Address::decode_from(&mut cursor, encoded.len()).unwrap();
-        assert_eq!(avp_decoded.0.to_string(), "::1");
+        let avp = Address::decode_from(&mut cursor, 18).unwrap();
+        assert_eq!(avp.0.to_string(), "::1");
     }
 }
