@@ -206,10 +206,11 @@ pub fn parse(xml: &str, dictionary: &mut Dictionary) {
                 _ => AvpType::Unknown,
             };
 
-            let m_flag = match avp.must {
-                Some(ref s) if s == "M" => true,
-                _ => false,
+            let flags: Vec<&str> = match avp.must {
+                Some(ref s) => s.split(',').collect(),
+                None => vec![],
             };
+            let m_flag = if flags.contains(&"M") { true } else { false };
 
             let vendor_id = match avp.vendor_id {
                 Some(ref s) => Some(s.parse::<u32>().unwrap()),
