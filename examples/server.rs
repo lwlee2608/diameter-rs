@@ -6,14 +6,23 @@ use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
+use diameter::dictionary;
 use diameter::flags;
 use diameter::transport::DiameterServer;
 use diameter::CommandCode;
 use diameter::DiameterMessage;
 use diameter::Result;
+use std::fs;
 
 #[tokio::main]
 async fn main() {
+    // Load dictionary
+    {
+        let mut dictionary = dictionary::DEFAULT_DICT.write().unwrap();
+        let xml = fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap();
+        dictionary.load_xml(&xml);
+    }
+
     // Set up a Diameter server listening on a specific port
     let addr = "0.0.0.0:3868";
     let mut server = DiameterServer::new(addr).await.unwrap();
