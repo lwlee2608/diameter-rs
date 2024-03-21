@@ -387,6 +387,16 @@ impl Avp {
         };
     }
 
+    pub fn from_name(avp_name: &str, value: AvpValue) -> Result<Avp> {
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let avp_def = dict
+            .get_avp_by_name(avp_name)
+            .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;
+
+        let flags = if avp_def.m_flag { flags::M } else { 0 };
+        Ok(Avp::new(avp_def.code, avp_def.vendor_id, flags, value))
+    }
+
     pub fn get_code(&self) -> u32 {
         self.header.code
     }
@@ -663,6 +673,9 @@ impl fmt::Display for Avp {
 macro_rules! avp {
     ($code:expr, $vendor_id:expr, $flags:expr, $value:expr $(,)?) => {
         Avp::new($code, $vendor_id, $flags, $value.into())
+    };
+    ($name:expr, $value:expr $(,)?) => {
+        Avp::from_name($name, $value.into())
     };
 }
 
