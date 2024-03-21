@@ -16,6 +16,8 @@ use std::net::Ipv4Addr;
 
 #[tokio::main]
 async fn main() {
+    env_logger::init();
+
     // Load dictionary
     {
         let mut dictionary = dictionary::DEFAULT_DICT.write().unwrap();
