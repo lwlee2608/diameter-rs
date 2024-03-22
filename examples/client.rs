@@ -30,6 +30,13 @@ async fn main() {
     let _ = client.connect().await;
 
     // Send a Capabilities-Exchange-Request (CER) Diameter message
+    send_cer(&mut client).await;
+
+    // Send a Credit-Control-Request (CCR) Diameter message
+    send_ccr(&mut client).await;
+}
+
+async fn send_cer(client: &mut DiameterClient) {
     let seq_num = client.get_next_seq_num();
     let mut cer = DiameterMessage::new(
         CommandCode::CapabilitiesExchange,
@@ -51,8 +58,9 @@ async fn main() {
 
     let cea = client.send_message(cer).await.unwrap();
     log::info!("Received rseponse: {}", cea);
+}
 
-    // Send a Credit-Control-Request (CCR) Diameter message
+async fn send_ccr(client: &mut DiameterClient) {
     let seq_num = client.get_next_seq_num();
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,

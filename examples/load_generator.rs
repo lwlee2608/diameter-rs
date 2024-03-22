@@ -17,6 +17,7 @@ use std::io::Write;
 use std::net::Ipv4Addr;
 use std::thread;
 use tokio::task;
+use tokio::task::JoinHandle;
 use tokio::task::LocalSet;
 
 #[tokio::main]
@@ -56,62 +57,13 @@ async fn main() {
             let _ = client.connect().await;
 
             // Send a Capabilities-Exchange-Request (CER) Diameter message
-            let seq_num = client.get_next_seq_num();
-            let mut cer = DiameterMessage::new(
-                CommandCode::CapabilitiesExchange,
-                ApplicationId::Common,
-                flags::REQUEST,
-                seq_num,
-                seq_num,
-            );
-            cer.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-            cer.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-            cer.add_avp(avp!(
-                257,
-                None,
-                M,
-                Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
-            ));
-            cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
-            cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
-
-            let cea = client.send_message(cer).await.unwrap();
-            log::info!("Received rseponse: {}", cea);
-
-            let mut handles = vec![];
+            send_cer(&mut client).await;
 
             // Send a batch of Credit-Control-Request (CCR) Diameter message
+            let mut handles = vec![];
             let batch_size = 10;
             for _ in 0..batch_size {
-                let seq_num = client.get_next_seq_num();
-                let mut ccr = DiameterMessage::new(
-                    CommandCode::CreditControl,
-                    ApplicationId::CreditControl,
-                    flags::REQUEST,
-                    seq_num,
-                    seq_num,
-                );
-                ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-                ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-                ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-                ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-                ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-                ccr.add_avp(avp!(
-                    1228,
-                    Some(10415),
-                    M,
-                    Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
-                ));
-
-                let mut request = client.request(ccr).await.unwrap();
-                log::info!("Request sent: {}", seq_num);
-
-                let handle = task::spawn_local(async move {
-                    let _ = request.send().await.unwrap();
-                    let cca = request.response().await.unwrap();
-                    let seq_num = cca.get_hop_by_hop_id();
-                    log::info!("Rseponse received: {}", seq_num);
-                });
+                let handle = send_ccr(&mut client).await;
                 handles.push(handle);
             }
 
@@ -120,4 +72,62 @@ async fn main() {
             }
         })
         .await
+}
+
+async fn send_cer(client: &mut DiameterClient) {
+    let seq_num = client.get_next_seq_num();
+    let mut cer = DiameterMessage::new(
+        CommandCode::CapabilitiesExchange,
+        ApplicationId::Common,
+        flags::REQUEST,
+        seq_num,
+        seq_num,
+    );
+    cer.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    cer.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    cer.add_avp(avp!(
+        257,
+        None,
+        M,
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
+    ));
+    cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
+    cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
+
+    let cea = client.send_message(cer).await.unwrap();
+    log::info!("Received rseponse: {}", cea);
+}
+
+async fn send_ccr(client: &mut DiameterClient) -> JoinHandle<()> {
+    let seq_num = client.get_next_seq_num();
+    let mut ccr = DiameterMessage::new(
+        CommandCode::CreditControl,
+        ApplicationId::CreditControl,
+        flags::REQUEST,
+        seq_num,
+        seq_num,
+    );
+    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
+    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+    ccr.add_avp(avp!(
+        1228,
+        Some(10415),
+        M,
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
+    ));
+
+    let mut request = client.request(ccr).await.unwrap();
+    log::info!("Request sent id: {}", seq_num);
+
+    let handle = task::spawn_local(async move {
+        let _ = request.send().await.unwrap();
+        let cca = request.response().await.unwrap();
+        let seq_num = cca.get_hop_by_hop_id();
+        log::info!("Response recv id: {}", seq_num);
+    });
+
+    handle
 }
