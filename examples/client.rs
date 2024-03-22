@@ -16,7 +16,7 @@ use std::net::Ipv4Addr;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     // Load dictionary
     {
@@ -50,7 +50,7 @@ async fn main() {
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
 
     let cea = client.send_message(cer).await.unwrap();
-    println!("Received rseponse: {}", cea);
+    log::info!("Received rseponse: {}", cea);
 
     // Send a Credit-Control-Request (CCR) Diameter message
     let seq_num = client.get_next_seq_num();
@@ -74,5 +74,5 @@ async fn main() {
     ));
 
     let cca = client.send_message(ccr).await.unwrap();
-    println!("Received rseponse: {}", cca);
+    log::info!("Received rseponse: {}", cca);
 }

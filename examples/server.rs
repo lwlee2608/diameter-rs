@@ -16,7 +16,7 @@ use std::fs;
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     // Load dictionary
     {
@@ -28,12 +28,12 @@ async fn main() {
     // Set up a Diameter server listening on a specific port
     let addr = "0.0.0.0:3868";
     let mut server = DiameterServer::new(addr).await.unwrap();
-    println!("Listening at {}", addr);
+    log::info!("Listening at {}", addr);
 
     // Asynchronously handle incoming requests to the server
     server
         .listen(|req| -> Result<DiameterMessage> {
-            println!("Received request: {}", req);
+            log::info!("Received request: {}", req);
 
             // Create a response message based on the received request
             let mut res = DiameterMessage::new(
