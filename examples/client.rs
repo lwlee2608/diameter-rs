@@ -27,7 +27,10 @@ async fn main() {
 
     // Initialize a Diameter client and connect it to the server
     let mut client = DiameterClient::new("localhost:3868");
-    let _ = client.connect().await;
+    let mut handler = client.connect().await.unwrap();
+    tokio::spawn(async move {
+        DiameterClient::handle(&mut handler).await;
+    });
 
     // Send a Capabilities-Exchange-Request (CER) Diameter message
     send_cer(&mut client).await;

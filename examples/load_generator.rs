@@ -10,7 +10,7 @@ use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
 use diameter::dictionary;
 use diameter::flags;
-use diameter::transport::eventloop::DiameterClient;
+use diameter::transport::DiameterClient;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
 use std::fs;
 use std::io::Write;
@@ -54,7 +54,10 @@ async fn main() {
         .run_until(async move {
             // Initialize a Diameter client and connect it to the server
             let mut client = DiameterClient::new("localhost:3868");
-            let _ = client.connect().await;
+            let mut handler = client.connect().await.unwrap();
+            task::spawn_local(async move {
+                DiameterClient::handle(&mut handler).await;
+            });
 
             // Send a Capabilities-Exchange-Request (CER) Diameter message
             send_cer(&mut client).await;

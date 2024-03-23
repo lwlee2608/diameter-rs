@@ -5,6 +5,7 @@ use crate::transport::Codec;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
@@ -29,7 +30,6 @@ pub struct DiameterClient {
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
     seq_num: u32,
 }
-// static COUNTER: AtomicU32 = AtomicU32::new(0);
 
 impl DiameterClient {
     /// Creates a new `DiameterClient` instance with a specified server address.
@@ -53,38 +53,50 @@ impl DiameterClient {
 
     /// Establishes a connection to the Diameter server.
     ///
-    /// This method uses the server address provided during the client's creation.
-    /// It sets up a TCP connection to the server and initializes the message handling infrastructure.
-    ///
     /// Returns:
-    ///     A `Result` indicating success (`Ok`) or the error (`Err`) encountered during the connection process.
-    pub async fn connect(&mut self) -> Result<()> {
+    ///    A `Result` containing a `ClientHandler` or an error if the connection cannot be established.
+    pub async fn connect(&mut self) -> Result<ClientHandler> {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
-        let (mut reader, writer) = stream.into_split();
+        let (reader, writer) = stream.into_split();
         let writer = Arc::new(Mutex::new(writer));
 
         self.writer = Some(writer);
 
         let msg_caches = Arc::clone(&self.msg_caches);
-        tokio::spawn(async move {
-            loop {
-                match Codec::decode(&mut reader).await {
-                    Ok(res) => {
-                        if let Err(e) = Self::process_decoded_msg(msg_caches.clone(), res).await {
-                            log::error!("Failed to process response; error: {:?}", e);
-                            return;
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to read message from socket; error: {:?}", e);
+        Ok(ClientHandler { reader, msg_caches })
+    }
+
+    /// Handles incoming Diameter messages.
+    ///
+    /// This method reads incoming messages from the server and processes them.
+    /// The method is intended to be run in a separate task.
+    ///
+    /// Args:
+    ///    handler: The `ClientHandler` for reading messages from the server.
+    ///
+    /// Example:
+    ///    ```
+    ///    tokio::spawn(async move {
+    ///        DiameterClient::handle(&mut handler).await;
+    ///    });
+    ///    ```
+    pub async fn handle(handler: &mut ClientHandler) {
+        loop {
+            match Codec::decode(&mut handler.reader).await {
+                Ok(res) => {
+                    if let Err(e) = Self::process_decoded_msg(handler.msg_caches.clone(), res).await
+                    {
+                        log::error!("Failed to process response; error: {:?}", e);
                         return;
                     }
                 }
+                Err(e) => {
+                    log::error!("Failed to read message from socket; error: {:?}", e);
+                    return;
+                }
             }
-        });
-
-        Ok(())
+        }
     }
 
     async fn process_decoded_msg(
@@ -159,6 +171,13 @@ impl DiameterClient {
         self.seq_num += 1;
         self.seq_num
     }
+}
+
+/// A Diameter protocol client handler for receiving Diameter messages.
+///
+pub struct ClientHandler {
+    reader: OwnedReadHalf,
+    msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
 /// Represents a single Diameter request and its associated response channel.

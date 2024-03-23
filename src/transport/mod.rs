@@ -117,7 +117,10 @@ mod tests {
 
         // Diameter Client
         let mut client = DiameterClient::new("localhost:3868");
-        let _ = client.connect().await;
+        let mut handler = client.connect().await.unwrap();
+        tokio::spawn(async move {
+            DiameterClient::handle(&mut handler).await;
+        });
 
         // Send Single CCR
         let mut ccr = DiameterMessage::new(
