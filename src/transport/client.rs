@@ -76,10 +76,17 @@ impl DiameterClient {
     ///    handler: The `ClientHandler` for reading messages from the server.
     ///
     /// Example:
-    ///    ```
-    ///    tokio::spawn(async move {
-    ///        DiameterClient::handle(&mut handler).await;
-    ///    });
+    ///    ```no_run
+    ///    use diameter::transport::client::{ClientHandler, DiameterClient};
+    ///
+    ///    #[tokio::main]
+    ///    async fn main() {
+    ///        let mut client = DiameterClient::new("localhost:3868");
+    ///        let mut handler = client.connect().await.unwrap();
+    ///        tokio::spawn(async move {
+    ///            DiameterClient::handle(&mut handler).await;
+    ///        });
+    ///    }
     ///    ```
     pub async fn handle(handler: &mut ClientHandler) {
         loop {
