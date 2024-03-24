@@ -1,7 +1,7 @@
 //! Diameter Protocol Transport
 
 pub mod client;
-pub mod eventloop;
+pub mod experimental;
 pub mod server;
 
 pub use crate::transport::client::DiameterClient;
