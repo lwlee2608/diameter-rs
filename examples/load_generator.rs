@@ -63,18 +63,21 @@ async fn main() {
             send_cer(&mut client).await;
 
             // Send a batch of Credit-Control-Request Initial (CCR-I) Diameter message
+            let mut session_count = 0;
             let mut ccri_futures = vec![];
-            let batch_size = 5;
+            let batch_size = 10;
             for _ in 0..batch_size {
-                let future = send_ccr_i(&mut client).await;
+                let session_id = format!("ses;{:09}", session_count);
+                session_count += 1;
+                let future = send_ccr_i(&mut client, &session_id).await;
                 ccri_futures.push(future);
             }
 
             // Send Credit-Control-Request Terminate (CCR-T) when CCA-I is received
             let mut ccrt_futures = vec![];
             for ccri_future in ccri_futures {
-                ccri_future.await.unwrap();
-                let future = send_ccr_t(&mut client).await;
+                let session_id = ccri_future.await.unwrap();
+                let future = send_ccr_t(&mut client, &session_id).await;
                 ccrt_futures.push(future);
             }
 
@@ -109,7 +112,7 @@ async fn send_cer(client: &mut DiameterClient) {
     let _cea = client.send_message(cer).await.unwrap();
 }
 
-async fn send_ccr_i(client: &mut DiameterClient) -> JoinHandle<()> {
+async fn send_ccr_i(client: &mut DiameterClient, session_id: &str) -> JoinHandle<String> {
     let seq_num = client.get_next_seq_num();
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,
@@ -120,7 +123,7 @@ async fn send_ccr_i(client: &mut DiameterClient) -> JoinHandle<()> {
     );
     ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
     ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    ccr.add_avp(avp!(263, None, M, UTF8String::new(&session_id)));
     ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
     ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
     ccr.add_avp(avp!(
@@ -131,19 +134,29 @@ async fn send_ccr_i(client: &mut DiameterClient) -> JoinHandle<()> {
     ));
 
     let mut request = client.request(ccr).await.unwrap();
-    log::info!("CCR-I Request sent id: {}", seq_num);
+    log::info!(
+        "CCR-I  Request sent id: {:>2} session_id: {}",
+        seq_num,
+        session_id
+    );
 
     let handle = task::spawn_local(async move {
         let _ = request.send().await.unwrap();
         let cca = request.response().await.unwrap();
         let seq_num = cca.get_hop_by_hop_id();
-        log::info!("CCR-I Response recv id: {}", seq_num);
+        let session_id = cca.get_avp(263).unwrap().get_utf8string().unwrap();
+        log::info!(
+            "CCR-I Response recv id: {:>2} session_id: {}",
+            seq_num,
+            session_id
+        );
+        session_id.value().to_string()
     });
 
     handle
 }
 
-async fn send_ccr_t(client: &mut DiameterClient) -> JoinHandle<()> {
+async fn send_ccr_t(client: &mut DiameterClient, session_id: &str) -> JoinHandle<()> {
     let seq_num = client.get_next_seq_num();
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,
@@ -154,7 +167,7 @@ async fn send_ccr_t(client: &mut DiameterClient) -> JoinHandle<()> {
     );
     ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
     ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    ccr.add_avp(avp!(263, None, M, UTF8String::new(session_id)));
     ccr.add_avp(avp!(416, None, M, Enumerated::new(3)));
     ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
     ccr.add_avp(avp!(
@@ -165,13 +178,22 @@ async fn send_ccr_t(client: &mut DiameterClient) -> JoinHandle<()> {
     ));
 
     let mut request = client.request(ccr).await.unwrap();
-    log::info!("CCR-T Request sent id: {}", seq_num);
+    log::info!(
+        "CCR-T  Request sent id: {:>2} session_id: {}",
+        seq_num,
+        session_id
+    );
 
     let handle = task::spawn_local(async move {
         let _ = request.send().await.unwrap();
         let cca = request.response().await.unwrap();
         let seq_num = cca.get_hop_by_hop_id();
-        log::info!("CCR-T Response recv id: {}", seq_num);
+        let session_id = cca.get_avp(263).unwrap().get_utf8string().unwrap();
+        log::info!(
+            "CCR-T Response recv id: {:>2} session_id: {}",
+            seq_num,
+            session_id
+        );
     });
 
     handle
