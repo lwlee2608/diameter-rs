@@ -82,7 +82,6 @@ mod tests {
     use crate::avp::Unsigned64;
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
-    use crate::error::Result;
     use crate::transport::DiameterClient;
     use crate::transport::DiameterServer;
 
@@ -93,7 +92,7 @@ mod tests {
 
         tokio::spawn(async move {
             server
-                .listen(|req| -> Result<DiameterMessage> {
+                .listen(|req| async move {
                     println!("Request : {}", req);
 
                     let mut res = DiameterMessage::new(

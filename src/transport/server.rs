@@ -2,6 +2,7 @@
 use crate::diameter::DiameterMessage;
 use crate::error::Result;
 use crate::transport::Codec;
+use std::future::Future;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
@@ -44,9 +45,10 @@ impl DiameterServer {
     /// Returns:
     ///     A `Result` indicating the success or failure of the operation. Errors could occur
     ///     during the acceptance of new connections or during the message handling process.
-    pub async fn listen<F>(&mut self, handler: F) -> Result<()>
+    pub async fn listen<F, Fut>(&mut self, handler: F) -> Result<()>
     where
-        F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
+        F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
+        Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
     {
         loop {
             let (stream, peer_addr) = self.listener.accept().await?;
@@ -66,9 +68,10 @@ impl DiameterServer {
         }
     }
 
-    async fn handle_peer<F>(mut stream: TcpStream, handler: F) -> Result<()>
+    async fn handle_peer<F, Fut>(mut stream: TcpStream, handler: F) -> Result<()>
     where
-        F: Fn(DiameterMessage) -> Result<DiameterMessage> + Clone + Send + 'static,
+        F: Fn(DiameterMessage) -> Fut,
+        Fut: Future<Output = Result<DiameterMessage>>,
     {
         let (mut reader, mut writer) = stream.split();
         loop {
@@ -88,7 +91,7 @@ impl DiameterServer {
             };
 
             // Process the request using the handler
-            let res = handler(req)?;
+            let res = handler(req).await?;
 
             // Encode and send the response
             Codec::encode(&mut writer, &res).await?;

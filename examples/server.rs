@@ -1,3 +1,4 @@
+use chrono::Local;
 use diameter::avp;
 use diameter::avp::flags::M;
 use diameter::avp::Avp;
@@ -11,12 +12,31 @@ use diameter::flags;
 use diameter::transport::DiameterServer;
 use diameter::CommandCode;
 use diameter::DiameterMessage;
-use diameter::Result;
 use std::fs;
+use std::io::Write;
+use std::thread;
 
 #[tokio::main]
 async fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    env_logger::Builder::new()
+        .format(|buf, record| {
+            let now = Local::now();
+            let thread = thread::current();
+            let thread_name = thread.name().unwrap_or("unnamed");
+            let thread_id = thread.id();
+
+            writeln!(
+                buf,
+                "{} [{}] {:?} - ({}): {}",
+                now.format("%Y-%m-%d %H:%M:%S%.3f"),
+                record.level(),
+                thread_id,
+                thread_name,
+                record.args()
+            )
+        })
+        .filter(None, log::LevelFilter::Info)
+        .init();
 
     // Load dictionary
     {
@@ -32,7 +52,7 @@ async fn main() {
 
     // Asynchronously handle incoming requests to the server
     server
-        .listen(|req| -> Result<DiameterMessage> {
+        .listen(|req| async move {
             log::info!("Received request: {}", req);
 
             // Create a response message based on the received request
@@ -85,7 +105,7 @@ async fn main() {
             }
 
             // Simulate a delay
-            //tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             // Return the response
             Ok(res)
