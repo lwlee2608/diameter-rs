@@ -62,16 +62,25 @@ async fn main() {
             // Send a Capabilities-Exchange-Request (CER) Diameter message
             send_cer(&mut client).await;
 
-            // Send a batch of Credit-Control-Request (CCR) Diameter message
-            let mut handles = vec![];
-            let batch_size = 10;
+            // Send a batch of Credit-Control-Request Initial (CCR-I) Diameter message
+            let mut ccri_futures = vec![];
+            let batch_size = 5;
             for _ in 0..batch_size {
-                let handle = send_ccr(&mut client).await;
-                handles.push(handle);
+                let future = send_ccr_i(&mut client).await;
+                ccri_futures.push(future);
             }
 
-            for handle in handles {
-                handle.await.unwrap();
+            // Send Credit-Control-Request Terminate (CCR-T) when CCA-I is received
+            let mut ccrt_futures = vec![];
+            for ccri_future in ccri_futures {
+                ccri_future.await.unwrap();
+                let future = send_ccr_t(&mut client).await;
+                ccrt_futures.push(future);
+            }
+
+            // Wait for all CCR-T to be received
+            for ccrt_future in ccrt_futures {
+                ccrt_future.await.unwrap();
             }
         })
         .await
@@ -97,11 +106,10 @@ async fn send_cer(client: &mut DiameterClient) {
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
 
-    let cea = client.send_message(cer).await.unwrap();
-    log::info!("Received rseponse: {}", cea);
+    let _cea = client.send_message(cer).await.unwrap();
 }
 
-async fn send_ccr(client: &mut DiameterClient) -> JoinHandle<()> {
+async fn send_ccr_i(client: &mut DiameterClient) -> JoinHandle<()> {
     let seq_num = client.get_next_seq_num();
     let mut ccr = DiameterMessage::new(
         CommandCode::CreditControl,
@@ -123,13 +131,47 @@ async fn send_ccr(client: &mut DiameterClient) -> JoinHandle<()> {
     ));
 
     let mut request = client.request(ccr).await.unwrap();
-    log::info!("Request sent id: {}", seq_num);
+    log::info!("CCR-I Request sent id: {}", seq_num);
 
     let handle = task::spawn_local(async move {
         let _ = request.send().await.unwrap();
         let cca = request.response().await.unwrap();
         let seq_num = cca.get_hop_by_hop_id();
-        log::info!("Response recv id: {}", seq_num);
+        log::info!("CCR-I Response recv id: {}", seq_num);
+    });
+
+    handle
+}
+
+async fn send_ccr_t(client: &mut DiameterClient) -> JoinHandle<()> {
+    let seq_num = client.get_next_seq_num();
+    let mut ccr = DiameterMessage::new(
+        CommandCode::CreditControl,
+        ApplicationId::CreditControl,
+        flags::REQUEST,
+        seq_num,
+        seq_num,
+    );
+    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
+    ccr.add_avp(avp!(416, None, M, Enumerated::new(3)));
+    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+    ccr.add_avp(avp!(
+        1228,
+        Some(10415),
+        M,
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
+    ));
+
+    let mut request = client.request(ccr).await.unwrap();
+    log::info!("CCR-T Request sent id: {}", seq_num);
+
+    let handle = task::spawn_local(async move {
+        let _ = request.send().await.unwrap();
+        let cca = request.response().await.unwrap();
+        let seq_num = cca.get_hop_by_hop_id();
+        log::info!("CCR-T Response recv id: {}", seq_num);
     });
 
     handle

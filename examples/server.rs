@@ -84,6 +84,9 @@ async fn main() {
                 }
             }
 
+            // Simulate a delay
+            //tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
             // Return the response
             Ok(res)
         })
