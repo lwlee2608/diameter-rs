@@ -18,6 +18,8 @@ log = "0.4"
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde-xml-rs = "0.6"
+tokio-native-tls = "0.3"
+native-tls = "0.2"
 
 [dev-dependencies]
 env_logger = "0.9"

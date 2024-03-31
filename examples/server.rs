@@ -10,6 +10,7 @@ use diameter::avp::Unsigned32;
 use diameter::dictionary;
 use diameter::flags;
 use diameter::transport::DiameterServer;
+use diameter::transport::DiameterServerConfig;
 use diameter::CommandCode;
 use diameter::DiameterMessage;
 use std::fs;
@@ -47,7 +48,8 @@ async fn main() {
 
     // Set up a Diameter server listening on a specific port
     let addr = "0.0.0.0:3868";
-    let mut server = DiameterServer::new(addr).await.unwrap();
+    let config = DiameterServerConfig { native_tls: None };
+    let mut server = DiameterServer::new(addr, config).await.unwrap();
     log::info!("Listening at {}", addr);
 
     // Asynchronously handle incoming requests to the server

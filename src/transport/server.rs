@@ -3,14 +3,20 @@ use crate::diameter::DiameterMessage;
 use crate::error::Result;
 use crate::transport::Codec;
 use std::future::Future;
+use std::net::SocketAddr;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
-use tokio::net::TcpStream;
 
+pub struct DiameterServerConfig {
+    pub native_tls: Option<native_tls::Identity>,
+}
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
 /// This server listens for incoming Diameter messages, processes them, and sends back responses.
 pub struct DiameterServer {
     listener: TcpListener,
+    config: DiameterServerConfig,
 }
 
 impl DiameterServer {
@@ -23,9 +29,9 @@ impl DiameterServer {
     ///
     /// Returns:
     ///     A `Result` containing the new `DiameterServer` instance or an `Error` if the binding fails.
-    pub async fn new(addr: &str) -> Result<DiameterServer> {
+    pub async fn new(addr: &str, config: DiameterServerConfig) -> Result<DiameterServer> {
         let listener = TcpListener::bind(addr).await?;
-        Ok(DiameterServer { listener })
+        Ok(DiameterServer { listener, config })
     }
 
     /// Listens for incoming connections and processes Diameter messages.
@@ -51,32 +57,55 @@ impl DiameterServer {
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
     {
         loop {
-            let (stream, peer_addr) = self.listener.accept().await?;
+            match self.config.native_tls {
+                Some(ref identity) => {
+                    let acceptor = native_tls::TlsAcceptor::new(identity.clone()).unwrap();
+                    let acceptor = tokio_native_tls::TlsAcceptor::from(acceptor);
 
-            let handler = handler.clone();
-            tokio::spawn(async move {
-                log::info!("[{}] Connection established", peer_addr);
-                match Self::handle_peer(stream, handler).await {
-                    Ok(_) => {
-                        log::info!("[{}] Connection closed", peer_addr);
-                    }
-                    Err(e) => {
-                        log::error!("Fatal error occurred: {:?}", e);
-                    }
+                    let (stream, peer_addr) = self.listener.accept().await?;
+                    let stream = acceptor.accept(stream).await.unwrap();
+
+                    Self::handle_peer(peer_addr, stream, handler.clone()).await?;
                 }
-            });
+                None => {
+                    let (stream, peer_addr) = self.listener.accept().await?;
+                    Self::handle_peer(peer_addr, stream, handler.clone()).await?;
+                }
+            };
         }
     }
 
-    async fn handle_peer<F, Fut>(mut stream: TcpStream, handler: F) -> Result<()>
+    async fn handle_peer<F, Fut, S>(peer_addr: SocketAddr, stream: S, handler: F) -> Result<()>
+    where
+        F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
+        Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
+        S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
+    {
+        let handler = handler.clone();
+        tokio::spawn(async move {
+            log::info!("[{}] Connection established", peer_addr);
+            match Self::process_incoming_message(stream, handler).await {
+                Ok(_) => {
+                    log::info!("[{}] Connection closed", peer_addr);
+                }
+                Err(e) => {
+                    log::error!("Fatal error occurred: {:?}", e);
+                }
+            }
+        });
+        todo!()
+    }
+
+    async fn process_incoming_message<F, Fut, S>(mut stream: S, handler: F) -> Result<()>
     where
         F: Fn(DiameterMessage) -> Fut,
         Fut: Future<Output = Result<DiameterMessage>>,
+        S: AsyncReadExt + AsyncWriteExt + Unpin,
     {
-        let (mut reader, mut writer) = stream.split();
+        // let (mut reader, mut writer) = stream.split();
         loop {
             // Read and decode the request
-            let req = match Codec::decode(&mut reader).await {
+            let req = match Codec::decode(&mut stream).await {
                 Ok(req) => req,
                 Err(e) => match e {
                     crate::error::Error::IoError(ref e)
@@ -94,7 +123,7 @@ impl DiameterServer {
             let res = handler(req).await?;
 
             // Encode and send the response
-            Codec::encode(&mut writer, &res).await?;
+            Codec::encode(&mut stream, &res).await?;
         }
     }
 }

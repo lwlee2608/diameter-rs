@@ -6,6 +6,7 @@ pub mod server;
 
 pub use crate::transport::client::DiameterClient;
 pub use crate::transport::server::DiameterServer;
+pub use crate::transport::server::DiameterServerConfig;
 
 use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
@@ -84,11 +85,15 @@ mod tests {
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::transport::DiameterClient;
     use crate::transport::DiameterServer;
+    use crate::transport::DiameterServerConfig;
 
     #[tokio::test]
     async fn test_diameter_transport() {
         // Diameter Server
-        let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
+        let mut server =
+            DiameterServer::new("0.0.0.0:3868", DiameterServerConfig { native_tls: None })
+                .await
+                .unwrap();
 
         tokio::spawn(async move {
             server
