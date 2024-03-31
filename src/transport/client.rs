@@ -13,6 +13,14 @@ use tokio::sync::oneshot::Receiver;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::Mutex;
 
+/// Configuration for a Diameter protocol client.
+///
+pub struct DiameterClientConfig {
+    pub use_tls: bool,
+    pub verify_cert: bool,
+    // pub native_tls: Option<native_tls::Identity>, // Future Implementation
+}
+
 /// A Diameter protocol client for sending and receiving Diameter messages.
 ///
 /// The client maintains a connection to a Diameter server and provides
@@ -25,6 +33,7 @@ use tokio::sync::Mutex;
 ///     seq_num: The next sequence number to use for a message.
 
 pub struct DiameterClient {
+    config: DiameterClientConfig,
     address: String,
     writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
@@ -42,8 +51,9 @@ impl DiameterClient {
     ///
     /// Returns:
     ///     A new instance of `DiameterClient`.
-    pub fn new(addr: &str) -> DiameterClient {
+    pub fn new(addr: &str, config: DiameterClientConfig) -> DiameterClient {
         DiameterClient {
+            config,
             address: addr.into(),
             writer: None,
             msg_caches: Arc::new(Mutex::new(HashMap::new())),
@@ -77,11 +87,12 @@ impl DiameterClient {
     ///
     /// Example:
     ///    ```no_run
-    ///    use diameter::transport::client::{ClientHandler, DiameterClient};
+    ///    use diameter::transport::client::{ClientHandler, DiameterClient, DiameterClientConfig};
     ///
     ///    #[tokio::main]
     ///    async fn main() {
-    ///        let mut client = DiameterClient::new("localhost:3868");
+    ///        let config = DiameterClientConfig { use_tls: false, verify_cert: false };
+    ///        let mut client = DiameterClient::new("localhost:3868", config);
     ///        let mut handler = client.connect().await.unwrap();
     ///        tokio::spawn(async move {
     ///            DiameterClient::handle(&mut handler).await;

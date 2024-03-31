@@ -5,6 +5,7 @@ pub mod experimental;
 pub mod server;
 
 pub use crate::transport::client::DiameterClient;
+pub use crate::transport::client::DiameterClientConfig;
 pub use crate::transport::server::DiameterServer;
 pub use crate::transport::server::DiameterServerConfig;
 
@@ -84,6 +85,7 @@ mod tests {
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::transport::DiameterClient;
+    use crate::transport::DiameterClientConfig;
     use crate::transport::DiameterServer;
     use crate::transport::DiameterServerConfig;
 
@@ -120,7 +122,11 @@ mod tests {
         });
 
         // Diameter Client
-        let mut client = DiameterClient::new("localhost:3868");
+        let client_config = DiameterClientConfig {
+            use_tls: false,
+            verify_cert: false,
+        };
+        let mut client = DiameterClient::new("localhost:3868", client_config);
         let mut handler = client.connect().await.unwrap();
         tokio::spawn(async move {
             DiameterClient::handle(&mut handler).await;
