@@ -61,21 +61,19 @@ impl DiameterServer {
                 Some(ref identity) => {
                     let acceptor = native_tls::TlsAcceptor::new(identity.clone()).unwrap();
                     let acceptor = tokio_native_tls::TlsAcceptor::from(acceptor);
-
                     let (stream, peer_addr) = self.listener.accept().await?;
                     let stream = acceptor.accept(stream).await.unwrap();
-
-                    Self::handle_peer(peer_addr, stream, handler.clone()).await?;
+                    Self::handle_peer(peer_addr, stream, handler.clone());
                 }
                 None => {
                     let (stream, peer_addr) = self.listener.accept().await?;
-                    Self::handle_peer(peer_addr, stream, handler.clone()).await?;
+                    Self::handle_peer(peer_addr, stream, handler.clone());
                 }
             };
         }
     }
 
-    async fn handle_peer<F, Fut, S>(peer_addr: SocketAddr, stream: S, handler: F) -> Result<()>
+    fn handle_peer<F, Fut, S>(peer_addr: SocketAddr, stream: S, handler: F)
     where
         F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
@@ -93,7 +91,6 @@ impl DiameterServer {
                 }
             }
         });
-        todo!()
     }
 
     async fn process_incoming_message<F, Fut, S>(mut stream: S, handler: F) -> Result<()>
@@ -102,7 +99,6 @@ impl DiameterServer {
         Fut: Future<Output = Result<DiameterMessage>>,
         S: AsyncReadExt + AsyncWriteExt + Unpin,
     {
-        // let (mut reader, mut writer) = stream.split();
         loop {
             // Read and decode the request
             let req = match Codec::decode(&mut stream).await {
