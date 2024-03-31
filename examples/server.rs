@@ -10,9 +10,12 @@ use diameter::avp::Unsigned32;
 use diameter::dictionary;
 use diameter::flags;
 use diameter::transport::DiameterServer;
+use diameter::transport::DiameterServerConfig;
 use diameter::CommandCode;
 use diameter::DiameterMessage;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::io::Write;
 use std::thread;
 
@@ -45,9 +48,22 @@ async fn main() {
         dictionary.load_xml(&xml);
     }
 
+    // Setup TLS
+    // let mut cert_file = File::open("server.crt").unwrap();
+    // let mut certs = vec![];
+    // cert_file.read_to_end(&mut certs).unwrap();
+    // let mut key_file = File::open("server.key").unwrap();
+    // let mut key = vec![];
+    // key_file.read_to_end(&mut key).unwrap();
+    // let pkcs8 = native_tls::Identity::from_pkcs8(&certs, &key).unwrap();
+    // let config = DiameterServerConfig {
+    //     native_tls: Some(pkcs8),
+    // };
+    let config = DiameterServerConfig { native_tls: None };
+
     // Set up a Diameter server listening on a specific port
     let addr = "0.0.0.0:3868";
-    let mut server = DiameterServer::new(addr).await.unwrap();
+    let mut server = DiameterServer::new(addr, config).await.unwrap();
     log::info!("Listening at {}", addr);
 
     // Asynchronously handle incoming requests to the server
@@ -105,7 +121,7 @@ async fn main() {
             }
 
             // Simulate a delay
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             // Return the response
             Ok(res)
