@@ -8,9 +8,11 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
+/// Configuration for the Diameter server.
 pub struct DiameterServerConfig {
     pub native_tls: Option<native_tls::Identity>,
 }
+
 /// A Diameter protocol server for handling Diameter requests and responses.
 ///
 /// This server listens for incoming Diameter messages, processes them, and sends back responses.
@@ -59,11 +61,17 @@ impl DiameterServer {
         loop {
             match self.config.native_tls {
                 Some(ref identity) => {
-                    let acceptor = native_tls::TlsAcceptor::new(identity.clone()).unwrap();
+                    let acceptor = native_tls::TlsAcceptor::new(identity.clone())?;
                     let acceptor = tokio_native_tls::TlsAcceptor::from(acceptor);
                     let (stream, peer_addr) = self.listener.accept().await?;
-                    let stream = acceptor.accept(stream).await.unwrap();
-                    Self::handle_peer(peer_addr, stream, handler.clone());
+                    match acceptor.accept(stream).await {
+                        Ok(stream) => {
+                            Self::handle_peer(peer_addr, stream, handler.clone());
+                        }
+                        Err(e) => {
+                            log::error!("TLS handshake failed: {:?}", e);
+                        }
+                    }
                 }
                 None => {
                     let (stream, peer_addr) = self.listener.accept().await?;
@@ -79,7 +87,6 @@ impl DiameterServer {
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
         S: AsyncReadExt + AsyncWriteExt + Unpin + Send + 'static,
     {
-        let handler = handler.clone();
         tokio::spawn(async move {
             log::info!("[{}] Connection established", peer_addr);
             match Self::process_incoming_message(stream, handler).await {

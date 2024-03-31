@@ -14,6 +14,7 @@ pub enum Error {
     IoError(std::io::Error),
     TryFromSliceError(std::array::TryFromSliceError),
     LockError(String),
+    NativeTlsError(native_tls::Error),
 }
 
 /// `Result` type used by `diameter`'s API.
@@ -31,6 +32,7 @@ impl fmt::Display for Error {
             Error::IoError(e) => write!(f, "{}", e),
             Error::TryFromSliceError(e) => write!(f, "{}", e),
             Error::LockError(msg) => write!(f, "{}", msg),
+            Error::NativeTlsError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -55,5 +57,11 @@ impl From<std::array::TryFromSliceError> for Error {
 impl<'a, T> From<PoisonError<MutexGuard<'a, T>>> for Error {
     fn from(err: PoisonError<MutexGuard<'a, T>>) -> Self {
         Error::LockError(format!("Lock error: {}", err))
+    }
+}
+
+impl From<native_tls::Error> for Error {
+    fn from(err: native_tls::Error) -> Self {
+        Error::NativeTlsError(err)
     }
 }
