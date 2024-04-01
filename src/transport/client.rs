@@ -7,8 +7,9 @@ use std::ops::DerefMut;
 use std::sync::Arc;
 // use tokio::net::tcp::ReadHalf;
 // use tokio::net::tcp::WriteHalf;
-use tokio::io::ReadHalf;
-use tokio::io::WriteHalf;
+// use tokio::io::WriteHalf;
+// use tokio::io::ReadHalf;
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -37,7 +38,7 @@ pub struct DiameterClientConfig {
 pub struct DiameterClient {
     config: DiameterClientConfig,
     address: String,
-    writer: Option<Arc<Mutex<WriteHalf<TcpStream>>>>,
+    writer: Option<Arc<Mutex<dyn AsyncWrite + Send + Unpin>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
     seq_num: u32,
 }
@@ -71,33 +72,38 @@ impl DiameterClient {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
         let (reader, writer) = tokio::io::split(stream);
-        // let (reader, writer) = stream.into_split();
         let writer = Arc::new(Mutex::new(writer));
 
         self.writer = Some(writer);
 
         let msg_caches = Arc::clone(&self.msg_caches);
-        Ok(ClientHandler { reader, msg_caches })
+        Ok(ClientHandler {
+            reader: Box::new(reader),
+            msg_caches,
+        })
     }
 
-    // pub async fn connectTls(&mut self) -> Result<ClientHandler> {
-    //     let tls_connector = tokio_native_tls::TlsConnector::from(
-    //         native_tls::TlsConnector::builder()
-    //             .danger_accept_invalid_certs(!self.config.verify_cert)
-    //             .build()
-    //             .unwrap(),
-    //     );
-    //     let stream = TcpStream::connect(self.address.clone()).await?;
-    //     let tls_stream = tls_connector.connect("localhost", stream).await?;
-    //
-    //     let (reader, writer) = tokio::io::split(tls_stream);
-    //     let writer = Arc::new(Mutex::new(writer));
-    //
-    //     self.writer = Some(writer);
-    //
-    //     let msg_caches = Arc::clone(&self.msg_caches);
-    //     Ok(ClientHandler { reader, msg_caches })
-    // }
+    pub async fn connectTls(&mut self) -> Result<ClientHandler> {
+        let tls_connector = tokio_native_tls::TlsConnector::from(
+            native_tls::TlsConnector::builder()
+                .danger_accept_invalid_certs(!self.config.verify_cert)
+                .build()
+                .unwrap(),
+        );
+        let stream = TcpStream::connect(self.address.clone()).await?;
+        let tls_stream = tls_connector.connect("localhost", stream).await?;
+
+        let (reader, writer) = tokio::io::split(tls_stream);
+        let writer = Arc::new(Mutex::new(writer));
+
+        self.writer = Some(writer);
+
+        let msg_caches = Arc::clone(&self.msg_caches);
+        Ok(ClientHandler {
+            reader: Box::new(reader),
+            msg_caches,
+        })
+    }
 
     /// Handles incoming Diameter messages.
     ///
@@ -216,7 +222,8 @@ impl DiameterClient {
 /// A Diameter protocol client handler for receiving Diameter messages.
 ///
 pub struct ClientHandler {
-    reader: ReadHalf<TcpStream>,
+    // reader: ReadHalf<TcpStream>,
+    reader: Box<dyn AsyncRead + Send + Unpin>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
@@ -232,7 +239,7 @@ pub struct ClientHandler {
 pub struct DiameterRequest {
     request: DiameterMessage,
     receiver: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
-    writer: Arc<Mutex<WriteHalf<TcpStream>>>,
+    writer: Arc<Mutex<dyn AsyncWrite + Send + Unpin>>,
 }
 
 impl DiameterRequest {
@@ -248,7 +255,7 @@ impl DiameterRequest {
     pub fn new(
         request: DiameterMessage,
         receiver: Receiver<DiameterMessage>,
-        writer: Arc<Mutex<WriteHalf<TcpStream>>>,
+        writer: Arc<Mutex<dyn AsyncWrite + Send + Unpin>>,
     ) -> Self {
         DiameterRequest {
             request,
