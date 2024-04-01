@@ -5,10 +5,6 @@ use crate::transport::Codec;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
-// use tokio::net::tcp::ReadHalf;
-// use tokio::net::tcp::WriteHalf;
-// use tokio::io::WriteHalf;
-// use tokio::io::ReadHalf;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
@@ -71,38 +67,39 @@ impl DiameterClient {
     pub async fn connect(&mut self) -> Result<ClientHandler> {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
-        let (reader, writer) = tokio::io::split(stream);
-        let writer = Arc::new(Mutex::new(writer));
+        if self.config.use_tls {
+            let tls_connector = tokio_native_tls::TlsConnector::from(
+                native_tls::TlsConnector::builder()
+                    .danger_accept_invalid_certs(!self.config.verify_cert)
+                    .build()?,
+            );
+            let tls_stream = tls_connector.connect(&self.address.clone(), stream).await?;
+            let (reader, writer) = tokio::io::split(tls_stream);
 
-        self.writer = Some(writer);
+            // writer
+            let writer = Arc::new(Mutex::new(writer));
+            self.writer = Some(writer);
 
-        let msg_caches = Arc::clone(&self.msg_caches);
-        Ok(ClientHandler {
-            reader: Box::new(reader),
-            msg_caches,
-        })
-    }
+            // reader
+            let msg_caches = Arc::clone(&self.msg_caches);
+            Ok(ClientHandler {
+                reader: Box::new(reader),
+                msg_caches,
+            })
+        } else {
+            let (reader, writer) = tokio::io::split(stream);
 
-    pub async fn connectTls(&mut self) -> Result<ClientHandler> {
-        let tls_connector = tokio_native_tls::TlsConnector::from(
-            native_tls::TlsConnector::builder()
-                .danger_accept_invalid_certs(!self.config.verify_cert)
-                .build()
-                .unwrap(),
-        );
-        let stream = TcpStream::connect(self.address.clone()).await?;
-        let tls_stream = tls_connector.connect("localhost", stream).await?;
+            // writer
+            let writer = Arc::new(Mutex::new(writer));
+            self.writer = Some(writer);
 
-        let (reader, writer) = tokio::io::split(tls_stream);
-        let writer = Arc::new(Mutex::new(writer));
-
-        self.writer = Some(writer);
-
-        let msg_caches = Arc::clone(&self.msg_caches);
-        Ok(ClientHandler {
-            reader: Box::new(reader),
-            msg_caches,
-        })
+            // reader
+            let msg_caches = Arc::clone(&self.msg_caches);
+            Ok(ClientHandler {
+                reader: Box::new(reader),
+                msg_caches,
+            })
+        }
     }
 
     /// Handles incoming Diameter messages.
