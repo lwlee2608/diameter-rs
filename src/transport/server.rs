@@ -9,6 +9,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
 /// Configuration for the Diameter server.
+///
 pub struct DiameterServerConfig {
     pub native_tls: Option<native_tls::Identity>,
 }

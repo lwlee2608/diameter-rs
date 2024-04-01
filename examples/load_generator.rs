@@ -11,6 +11,7 @@ use diameter::avp::Unsigned32;
 use diameter::dictionary;
 use diameter::flags;
 use diameter::transport::DiameterClient;
+use diameter::transport::DiameterClientConfig;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
 use std::fs;
 use std::io::Write;
@@ -53,7 +54,11 @@ async fn main() {
     local
         .run_until(async move {
             // Initialize a Diameter client and connect it to the server
-            let mut client = DiameterClient::new("localhost:3868");
+            let client_config = DiameterClientConfig {
+                use_tls: false,
+                verify_cert: false,
+            };
+            let mut client = DiameterClient::new("localhost:3868", client_config);
             let mut handler = client.connect().await.unwrap();
             task::spawn_local(async move {
                 DiameterClient::handle(&mut handler).await;
