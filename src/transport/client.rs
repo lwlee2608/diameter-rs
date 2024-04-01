@@ -5,8 +5,10 @@ use crate::transport::Codec;
 use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::sync::Arc;
-use tokio::net::tcp::OwnedReadHalf;
-use tokio::net::tcp::OwnedWriteHalf;
+// use tokio::net::tcp::ReadHalf;
+// use tokio::net::tcp::WriteHalf;
+use tokio::io::ReadHalf;
+use tokio::io::WriteHalf;
 use tokio::net::TcpStream;
 use tokio::sync::oneshot;
 use tokio::sync::oneshot::Receiver;
@@ -35,7 +37,7 @@ pub struct DiameterClientConfig {
 pub struct DiameterClient {
     config: DiameterClientConfig,
     address: String,
-    writer: Option<Arc<Mutex<OwnedWriteHalf>>>,
+    writer: Option<Arc<Mutex<WriteHalf<TcpStream>>>>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
     seq_num: u32,
 }
@@ -68,7 +70,8 @@ impl DiameterClient {
     pub async fn connect(&mut self) -> Result<ClientHandler> {
         let stream = TcpStream::connect(self.address.clone()).await?;
 
-        let (reader, writer) = stream.into_split();
+        let (reader, writer) = tokio::io::split(stream);
+        // let (reader, writer) = stream.into_split();
         let writer = Arc::new(Mutex::new(writer));
 
         self.writer = Some(writer);
@@ -76,6 +79,25 @@ impl DiameterClient {
         let msg_caches = Arc::clone(&self.msg_caches);
         Ok(ClientHandler { reader, msg_caches })
     }
+
+    // pub async fn connectTls(&mut self) -> Result<ClientHandler> {
+    //     let tls_connector = tokio_native_tls::TlsConnector::from(
+    //         native_tls::TlsConnector::builder()
+    //             .danger_accept_invalid_certs(!self.config.verify_cert)
+    //             .build()
+    //             .unwrap(),
+    //     );
+    //     let stream = TcpStream::connect(self.address.clone()).await?;
+    //     let tls_stream = tls_connector.connect("localhost", stream).await?;
+    //
+    //     let (reader, writer) = tokio::io::split(tls_stream);
+    //     let writer = Arc::new(Mutex::new(writer));
+    //
+    //     self.writer = Some(writer);
+    //
+    //     let msg_caches = Arc::clone(&self.msg_caches);
+    //     Ok(ClientHandler { reader, msg_caches })
+    // }
 
     /// Handles incoming Diameter messages.
     ///
@@ -194,7 +216,7 @@ impl DiameterClient {
 /// A Diameter protocol client handler for receiving Diameter messages.
 ///
 pub struct ClientHandler {
-    reader: OwnedReadHalf,
+    reader: ReadHalf<TcpStream>,
     msg_caches: Arc<Mutex<HashMap<u32, Sender<DiameterMessage>>>>,
 }
 
@@ -210,7 +232,7 @@ pub struct ClientHandler {
 pub struct DiameterRequest {
     request: DiameterMessage,
     receiver: Arc<Mutex<Option<Receiver<DiameterMessage>>>>,
-    writer: Arc<Mutex<OwnedWriteHalf>>,
+    writer: Arc<Mutex<WriteHalf<TcpStream>>>,
 }
 
 impl DiameterRequest {
@@ -226,7 +248,7 @@ impl DiameterRequest {
     pub fn new(
         request: DiameterMessage,
         receiver: Receiver<DiameterMessage>,
-        writer: Arc<Mutex<OwnedWriteHalf>>,
+        writer: Arc<Mutex<WriteHalf<TcpStream>>>,
     ) -> Self {
         DiameterRequest {
             request,
