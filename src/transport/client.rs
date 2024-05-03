@@ -3,7 +3,9 @@ use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
 use crate::transport::Codec;
 use std::collections::HashMap;
+use std::future::Future;
 use std::ops::DerefMut;
+use std::pin::Pin;
 use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpStream;
@@ -209,6 +211,22 @@ impl DiameterClient {
         Ok(response)
     }
 
+    pub async fn send_message_async(&mut self, req: DiameterMessage) -> Result<ResponseFuture> {
+        if let Some(writer) = &self.writer {
+            let (tx, rx) = oneshot::channel();
+            let hop_by_hop = req.get_hop_by_hop_id();
+            {
+                let mut msg_caches = self.msg_caches.lock().await;
+                msg_caches.insert(hop_by_hop, tx);
+            }
+            let mut writer = writer.lock().await;
+            Codec::encode(&mut writer.deref_mut(), &req).await?;
+            Ok(ResponseFuture { receiver: rx })
+        } else {
+            Err(Error::ClientError("Not connected".into()))
+        }
+    }
+
     // Returns the next sequence number.
     pub fn get_next_seq_num(&mut self) -> u32 {
         self.seq_num += 1;
@@ -301,5 +319,29 @@ impl DiameterRequest {
         })?;
 
         Ok(res)
+    }
+}
+
+#[derive(Debug)]
+pub struct ResponseFuture {
+    pub receiver: oneshot::Receiver<DiameterMessage>,
+}
+
+impl Future for ResponseFuture {
+    type Output = Result<DiameterMessage>;
+
+    fn poll(
+        mut self: Pin<&mut Self>,
+        ctx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        match Pin::new(&mut self.receiver).poll(ctx) {
+            std::task::Poll::Ready(result) => match result {
+                Ok(response) => std::task::Poll::Ready(Ok(response)),
+                Err(_) => std::task::Poll::Ready(Err(Error::ClientError(
+                    "Response channel closed".into(),
+                ))),
+            },
+            std::task::Poll::Pending => std::task::Poll::Pending,
+        }
     }
 }

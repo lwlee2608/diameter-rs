@@ -145,7 +145,9 @@ mod tests {
         ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
         ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
         ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-        let cca = client.send_message(ccr).await.unwrap();
+        // let cca = client.send_message(ccr).await.unwrap();
+        let response = client.send_message_async(ccr).await.unwrap();
+        let cca = response.await.unwrap();
 
         println!("Response: {}", cca);
 
@@ -171,17 +173,27 @@ mod tests {
             ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
             ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
             ccr.add_avp(avp!(415, None, M, Unsigned64::new(1000)));
-            let mut request = client.request(ccr).await.unwrap();
+            let response = client.send_message_async(ccr).await.unwrap();
             let handle = tokio::spawn(async move {
-                let _ = request.send().await.unwrap();
-                let cca = request.response().await.unwrap();
-
+                let cca = response.await.unwrap();
                 println!("Response: {}", cca);
 
                 // Assert Result-Code
                 let result_code = &cca.get_avp(268).unwrap();
                 assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
             });
+
+            // let mut request = client.request(ccr).await.unwrap();
+            // let handle = tokio::spawn(async move {
+            //     let _ = request.send().await.unwrap();
+            //     let cca = request.response().await.unwrap();
+            //
+            //     println!("Response: {}", cca);
+            //
+            //     // Assert Result-Code
+            //     let result_code = &cca.get_avp(268).unwrap();
+            //     assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
+            // });
             handles.push(handle);
         }
 
