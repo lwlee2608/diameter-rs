@@ -111,7 +111,8 @@ async fn main() {
     ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
 
     // Send the CCR message to the server and wait for a response
-    let cca = client.send_message(ccr).await.unwrap();
+    let response = client.send_message(ccr).await.unwrap();
+    let cca = response.await.unwrap();
     println!("Received response: {}", cca);
 }
 ```

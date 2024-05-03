@@ -114,7 +114,8 @@ async fn send_cer(client: &mut DiameterClient) {
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
 
-    let _cea = client.send_message(cer).await.unwrap();
+    let response = client.send_message(cer).await.unwrap();
+    let _cea = response.await.unwrap();
 }
 
 async fn send_ccr_i(client: &mut DiameterClient, session_id: &str) -> JoinHandle<String> {
@@ -138,7 +139,7 @@ async fn send_ccr_i(client: &mut DiameterClient, session_id: &str) -> JoinHandle
         Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
     ));
 
-    let mut request = client.request(ccr).await.unwrap();
+    let response = client.send_message(ccr).await.unwrap();
     log::info!(
         "CCR-I  Request sent id: {:>2} session_id: {}",
         seq_num,
@@ -146,8 +147,7 @@ async fn send_ccr_i(client: &mut DiameterClient, session_id: &str) -> JoinHandle
     );
 
     let handle = task::spawn_local(async move {
-        let _ = request.send().await.unwrap();
-        let cca = request.response().await.unwrap();
+        let cca = response.await.unwrap();
         let seq_num = cca.get_hop_by_hop_id();
         let session_id = cca.get_avp(263).unwrap().get_utf8string().unwrap();
         log::info!(
@@ -182,7 +182,7 @@ async fn send_ccr_t(client: &mut DiameterClient, session_id: &str) -> JoinHandle
         Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
     ));
 
-    let mut request = client.request(ccr).await.unwrap();
+    let response = client.send_message(ccr).await.unwrap();
     log::info!(
         "CCR-T  Request sent id: {:>2} session_id: {}",
         seq_num,
@@ -190,8 +190,7 @@ async fn send_ccr_t(client: &mut DiameterClient, session_id: &str) -> JoinHandle
     );
 
     let handle = task::spawn_local(async move {
-        let _ = request.send().await.unwrap();
-        let cca = request.response().await.unwrap();
+        let cca = response.await.unwrap();
         let seq_num = cca.get_hop_by_hop_id();
         let session_id = cca.get_avp(263).unwrap().get_utf8string().unwrap();
         log::info!(
