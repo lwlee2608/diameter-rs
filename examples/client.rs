@@ -64,7 +64,8 @@ async fn send_cer(client: &mut DiameterClient) {
     cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
     cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
 
-    let cea = client.send_message(cer).await.unwrap();
+    let resp = client.send_message(cer).await.unwrap();
+    let cea = resp.await.unwrap();
     log::info!("Received rseponse: {}", cea);
 }
 
@@ -89,6 +90,7 @@ async fn send_ccr(client: &mut DiameterClient) {
         Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
     ));
 
-    let cca = client.send_message(ccr).await.unwrap();
+    let resp = client.send_message(ccr).await.unwrap();
+    let cca = resp.await.unwrap();
     log::info!("Received rseponse: {}", cca);
 }

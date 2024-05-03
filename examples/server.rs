@@ -38,7 +38,7 @@ async fn main() {
                 record.args()
             )
         })
-        .filter(None, log::LevelFilter::Info)
+        .filter(None, log::LevelFilter::Warn)
         .init();
 
     // Load dictionary
