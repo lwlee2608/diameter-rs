@@ -171,15 +171,14 @@ impl DiameterClient {
         Ok(())
     }
 
-    /// Sends a Diameter message and waits for the response.
-    ///
-    /// This is a convenience method that combines sending a request and waiting for its response.
+    /// Sends a Diameter message and returns a future for receiving the response.
     ///
     /// Args:
-    ///     req: The Diameter message to send.
+    ///   req: The Diameter message to send.
+    ///   Returns:
+    ///   A `ResponseFuture` for receiving the response from the server.
+    ///   The future will resolve to a `DiameterMessage` containing the response.
     ///
-    /// Returns:
-    ///    A `ResponseFuture` that resolves to the response message.
     pub async fn send_message(&mut self, req: DiameterMessage) -> Result<ResponseFuture> {
         if let Some(writer) = &self.writer {
             let (tx, rx) = oneshot::channel();
