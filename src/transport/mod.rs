@@ -183,17 +183,6 @@ mod tests {
                 assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
             });
 
-            // let mut request = client.request(ccr).await.unwrap();
-            // let handle = tokio::spawn(async move {
-            //     let _ = request.send().await.unwrap();
-            //     let cca = request.response().await.unwrap();
-            //
-            //     println!("Response: {}", cca);
-            //
-            //     // Assert Result-Code
-            //     let result_code = &cca.get_avp(268).unwrap();
-            //     assert_eq!(result_code.get_unsigned32().unwrap(), 2001);
-            // });
             handles.push(handle);
         }
 
