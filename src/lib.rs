@@ -10,8 +10,8 @@
 //!
 //! * [`server`] - A simple diameter server that listens for requests and sends a response.
 //!
-//! [`server`]: https://github.com/lwlee2608/diameter-rs/blob/v0.5.0/examples/server.rs
-//! [`client`]: https://github.com/lwlee2608/diameter-rs/blob/v0.5.0/examples/client.rs
+//! [`server`]: https://github.com/lwlee2608/diameter-rs/blob/v0.6.0/examples/server.rs
+//! [`client`]: https://github.com/lwlee2608/diameter-rs/blob/v0.6.0/examples/client.rs
 
 pub mod avp;
 pub mod diameter;
