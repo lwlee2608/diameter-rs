@@ -14,8 +14,6 @@ use diameter::transport::DiameterServerConfig;
 use diameter::CommandCode;
 use diameter::DiameterMessage;
 use std::fs;
-// use std::fs::File;
-// use std::io::Read;
 use std::io::Write;
 use std::thread;
 

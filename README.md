@@ -13,8 +13,10 @@ Rust Implementation of the Diameter Protocol.
 [actions-badge]: https://github.com/lwlee2608/diameter-rs/actions/workflows/build.yml/badge.svg
 [actions-url]: https://github.com/lwlee2608/diameter-rs/actions?query=branch%3Amaster
 
-## Reference
-Based on [RFC 6733](https://tools.ietf.org/html/rfc6733)
+## Overview
+
+This library provides a Rust implementation of the Diameter protocol, as defined by [RFC 6733](https://tools.ietf.org/html/rfc6733).
+
 
 
 ## Getting Started
@@ -27,7 +29,12 @@ Add this crate to your Rust project by adding the following to your `Cargo.toml`
 diameter-rs = "^0.6"
 ```
 
+
+## Usage
+
 ### Diameter Server Example
+Below is an example of setting up a Diameter server that listens for incoming requests
+
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
@@ -75,6 +82,8 @@ async fn main() {
 ```
 
 ### Diameter Client Example
+Below is an example of creating a Diameter client that sends a Credit-Control-Request (CCR) message to a server and waits for a response.
+
 ```rust
 use diameter::avp;
 use diameter::avp::Avp;
@@ -115,4 +124,33 @@ async fn main() {
     let cca = response.await.unwrap();
     println!("Received response: {}", cca);
 }
+```
+
+
+## TLS
+
+Below are examples of how to set up TLS for both the server and the client.
+
+### Server Configuration with TLS
+```rust
+    let mut cert_file = File::open("server.crt").unwrap();
+    let mut certs = vec![];
+    cert_file.read_to_end(&mut certs).unwrap();
+
+    let mut key_file = File::open("server.key").unwrap();
+    let mut key = vec![];
+    key_file.read_to_end(&mut key).unwrap();
+
+    let pkcs8 = native_tls::Identity::from_pkcs8(&certs, &key).unwrap();
+    let config = DiameterServerConfig {
+        native_tls: Some(pkcs8),
+    };
+```
+
+### Client Configuration with TLS
+```rust
+    let client_config = DiameterClientConfig {
+        use_tls: true,
+        verify_cert: false,
+    };
 ```
