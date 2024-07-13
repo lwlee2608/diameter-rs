@@ -1,5 +1,6 @@
 //! Diameter Protocol Client
 use crate::diameter::DiameterMessage;
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use crate::transport::Codec;
 use std::collections::HashMap;
@@ -115,20 +116,23 @@ impl DiameterClient {
     /// Example:
     ///    ```no_run
     ///    use diameter::transport::client::{ClientHandler, DiameterClient, DiameterClientConfig};
+    ///    use diameter::dictionary::Dictionary;
+    ///    use std::sync::Arc;
     ///
     ///    #[tokio::main]
     ///    async fn main() {
+    ///        let dict = Arc::new(Dictionary::new());
     ///        let config = DiameterClientConfig { use_tls: false, verify_cert: false };
     ///        let mut client = DiameterClient::new("localhost:3868", config);
     ///        let mut handler = client.connect().await.unwrap();
     ///        tokio::spawn(async move {
-    ///            DiameterClient::handle(&mut handler).await;
+    ///            DiameterClient::handle(&mut handler, dict).await;
     ///        });
     ///    }
     ///    ```
-    pub async fn handle(handler: &mut ClientHandler) {
+    pub async fn handle(handler: &mut ClientHandler, dictionary: Arc<Dictionary>) {
         loop {
-            match Codec::decode(&mut handler.reader).await {
+            match Codec::decode(&mut handler.reader, Arc::clone(&dictionary)).await {
                 Ok(res) => {
                     if let Err(e) = Self::process_decoded_msg(handler.msg_caches.clone(), res).await
                     {

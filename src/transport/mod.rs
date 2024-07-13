@@ -1,9 +1,9 @@
 //! Diameter Protocol Transport
 
 pub mod client;
-pub mod experimental;
 pub mod server;
 
+use crate::dictionary::Dictionary;
 pub use crate::transport::client::DiameterClient;
 pub use crate::transport::client::DiameterClientConfig;
 pub use crate::transport::server::DiameterServer;
@@ -12,6 +12,7 @@ pub use crate::transport::server::DiameterServerConfig;
 use crate::diameter::DiameterMessage;
 use crate::error::{Error, Result};
 use std::io::Cursor;
+use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
@@ -26,7 +27,7 @@ impl Codec {
     ///
     /// # Arguments
     /// * `reader` - A mutable reference to an object implementing `AsyncReadExt` and `Unpin`.
-    pub async fn decode<R>(reader: &mut R) -> Result<DiameterMessage>
+    pub async fn decode<R>(reader: &mut R, dict: Arc<Dictionary>) -> Result<DiameterMessage>
     where
         R: AsyncReadExt + Unpin,
     {
@@ -47,7 +48,7 @@ impl Codec {
 
         // Decode Response
         let mut cursor = Cursor::new(buffer);
-        DiameterMessage::decode_from(&mut cursor)
+        DiameterMessage::decode_from_with_dict(&mut cursor, dict)
     }
 
     /// Asynchronously encodes a DiameterMessage and writes it to a writer.
@@ -84,39 +85,49 @@ mod tests {
     use crate::avp::Unsigned64;
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
+    use crate::dictionary;
     use crate::transport::DiameterClient;
     use crate::transport::DiameterClientConfig;
     use crate::transport::DiameterServer;
     use crate::transport::DiameterServerConfig;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_diameter_transport() {
+        // Dictionary
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let dict = Arc::new(dict.clone());
+
         // Diameter Server
         let mut server =
             DiameterServer::new("0.0.0.0:3868", DiameterServerConfig { native_tls: None })
                 .await
                 .unwrap();
 
+        let dict_ref = Arc::clone(&dict);
         tokio::spawn(async move {
             server
-                .listen(|req| async move {
-                    println!("Request : {}", req);
+                .listen(
+                    |req| async move {
+                        println!("Request : {}", req);
 
-                    let mut res = DiameterMessage::new(
-                        req.get_command_code(),
-                        req.get_application_id(),
-                        req.get_flags() ^ flags::REQUEST,
-                        req.get_hop_by_hop_id(),
-                        req.get_end_to_end_id(),
-                    );
-                    res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-                    res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-                    res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
-                    res.add_avp(avp!(416, None, M, Enumerated::new(1)));
-                    res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-                    res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
-                    Ok(res)
-                })
+                        let mut res = DiameterMessage::new(
+                            req.get_command_code(),
+                            req.get_application_id(),
+                            req.get_flags() ^ flags::REQUEST,
+                            req.get_hop_by_hop_id(),
+                            req.get_end_to_end_id(),
+                        );
+                        res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+                        res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+                        res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
+                        res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+                        res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+                        res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+                        Ok(res)
+                    },
+                    dict_ref,
+                )
                 .await
                 .unwrap();
         });
@@ -129,7 +140,7 @@ mod tests {
         let mut client = DiameterClient::new("localhost:3868", client_config);
         let mut handler = client.connect().await.unwrap();
         tokio::spawn(async move {
-            DiameterClient::handle(&mut handler).await;
+            DiameterClient::handle(&mut handler, Arc::clone(&dict)).await;
         });
 
         // Send Single CCR

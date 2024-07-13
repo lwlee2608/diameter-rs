@@ -14,6 +14,7 @@ use diameter::transport::DiameterClientConfig;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
 use std::fs;
 use std::net::Ipv4Addr;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -26,6 +27,9 @@ async fn main() {
         dictionary.load_xml(&xml);
     }
 
+    let dict = dictionary::DEFAULT_DICT.read().unwrap();
+    let dict = Arc::new(dict.clone());
+
     // Initialize a Diameter client and connect it to the server
     let client_config = DiameterClientConfig {
         use_tls: false,
@@ -34,7 +38,7 @@ async fn main() {
     let mut client = DiameterClient::new("localhost:3868", client_config);
     let mut handler = client.connect().await.unwrap();
     tokio::spawn(async move {
-        DiameterClient::handle(&mut handler).await;
+        DiameterClient::handle(&mut handler, Arc::clone(&dict)).await;
     });
 
     // Send a Capabilities-Exchange-Request (CER) Diameter message
