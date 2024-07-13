@@ -9,12 +9,14 @@ use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
+use diameter::dictionary;
 use diameter::flags;
 use diameter::ApplicationId;
 use diameter::CommandCode;
 use diameter::DiameterHeader;
 use diameter::DiameterMessage;
 use std::io::Cursor;
+use std::sync::Arc;
 use test::black_box;
 use test::Bencher;
 
@@ -72,6 +74,21 @@ fn bench_decode_cca(b: &mut Bencher) {
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
         black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+    });
+}
+
+#[bench]
+fn bench_decode_cca_with_dict(b: &mut Bencher) {
+    let dict = dictionary::DEFAULT_DICT.read().unwrap();
+    let dict = Arc::new(dict.clone());
+
+    let message = cca_message();
+    let mut data = Vec::new();
+    message.encode_to(&mut data).unwrap();
+
+    b.iter(|| {
+        let mut cursor = Cursor::new(&data);
+        black_box(DiameterMessage::decode_from_with_dict(&mut cursor, Arc::clone(&dict)).unwrap())
     });
 }
 

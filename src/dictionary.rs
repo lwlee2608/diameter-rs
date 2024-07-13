@@ -9,20 +9,20 @@ use std::sync::RwLock;
 
 use crate::avp::AvpType;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dictionary {
     avps: BTreeMap<AvpKey, AvpDefinition>,
     applications: HashMap<String, ApplicationId>,
     commands: HashMap<String, CommandCode>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AvpKey {
     Code(u32),
     CodeAndVendor(u32, u32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AvpDefinition {
     pub code: u32,
     pub vendor_id: Option<u32>,
