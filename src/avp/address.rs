@@ -6,13 +6,13 @@ use std::io::Write;
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 
-use super::octetstring::OctetString;
+use super::utf8string::UTF8String;
 
 #[derive(Debug, Clone)]
 pub enum Value {
     IPv4(Ipv4Addr),
     IPv6(Ipv6Addr),
-    E164(OctetString), // TODO
+    E164(UTF8String),
 }
 
 #[derive(Debug, Clone)]
@@ -31,8 +31,8 @@ impl Address {
         Address(Value::IPv6(ip))
     }
 
-    pub fn from_e164(octet: OctetString) -> Address {
-        Address(Value::E164(octet))
+    pub fn from_e164(str: UTF8String) -> Address {
+        Address(Value::E164(str))
     }
 
     pub fn decode_from<R: Read>(reader: &mut R, len: usize) -> Result<Address> {
@@ -67,7 +67,10 @@ impl Address {
                 Address(Value::IPv6(ip))
             }
             [0, 8] => {
-                todo!("E164 not implemented")
+                if len > 17 {
+                    return Err(Error::DecodeError("Invalid address length".into()));
+                }
+                Address(Value::E164(UTF8String::decode_from(reader, len)?))
             }
             _ => return Err(Error::DecodeError("Unsupported address type".into())),
         };
@@ -84,7 +87,10 @@ impl Address {
                 writer.write_all(&[0, 2])?;
                 writer.write_all(&ip.octets())?;
             }
-            Value::E164(_) => todo!(),
+            Value::E164(str) => {
+                writer.write_all(&[0, 8])?;
+                let _ = str.encode_to(writer);
+            }
         };
         Ok(())
     }
@@ -93,7 +99,7 @@ impl Address {
         match &self.0 {
             Value::IPv4(_) => 6,
             Value::IPv6(_) => 18,
-            Value::E164(_) => todo!(),
+            Value::E164(utf8string) => utf8string.length(),
         }
     }
 }
@@ -103,7 +109,7 @@ impl fmt::Display for Value {
         match self {
             Value::IPv4(ip) => write!(f, "{}", ip),
             Value::IPv6(ip) => write!(f, "{}", ip),
-            Value::E164(octet) => write!(f, "{}", octet),
+            Value::E164(str) => write!(f, "{}", str),
         }
     }
 }
@@ -139,5 +145,15 @@ mod tests {
         let mut cursor = Cursor::new(&encoded);
         let avp = Address::decode_from(&mut cursor, 18).unwrap();
         assert_eq!(avp.0.to_string(), "::1");
+    }
+
+    #[test]
+    fn test_encode_decode_e164() {
+        let avp = Address::new(Value::E164(UTF8String::new("359898000135")));
+        let mut encoded = Vec::new();
+        avp.encode_to(&mut encoded).unwrap();
+        let mut cursor = Cursor::new(&encoded);
+        let avp = Address::decode_from(&mut cursor, 12).unwrap();
+        assert_eq!(avp.0.to_string(), "359898000135");
     }
 }
