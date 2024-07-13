@@ -465,7 +465,7 @@ impl Avp {
             }
             AvpType::Time => AvpValue::Time(Time::decode_from(reader)?),
             AvpType::Grouped => {
-                AvpValue::Grouped(Grouped::decode_from(reader, value_length as usize)?)
+                AvpValue::Grouped(Grouped::decode_from(reader, value_length as usize, &dict)?)
             }
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
         };

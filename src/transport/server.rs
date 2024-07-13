@@ -61,10 +61,6 @@ impl DiameterServer {
         F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
     {
-        // TODO remove me
-        // let dict = Dictionary::new();
-        // let dict = Arc::new(dict);
-
         loop {
             match self.config.native_tls {
                 Some(ref identity) => {

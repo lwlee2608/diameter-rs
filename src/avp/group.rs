@@ -1,4 +1,5 @@
 use crate::avp::Avp;
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use std::io::Read;
 use std::io::Seek;
@@ -16,12 +17,16 @@ impl Grouped {
         &self.0
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R, len: usize) -> Result<Grouped> {
+    pub fn decode_from<R: Read + Seek>(
+        reader: &mut R,
+        len: usize,
+        dict: &Dictionary,
+    ) -> Result<Grouped> {
         let mut avps = Vec::new();
 
         let mut offset = 0;
         while offset < len {
-            let avp = Avp::decode_from(reader)?;
+            let avp = Avp::decode_from_with_dict(reader, dict)?;
             offset += avp.get_length() as usize;
             offset += avp.get_padding() as usize;
             avps.push(avp);
@@ -69,13 +74,16 @@ impl std::fmt::Display for Grouped {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::avp;
     use crate::avp::enumerated::Enumerated;
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::AvpValue;
+    use crate::{avp, dictionary};
 
     #[test]
     fn test_encode_decode() {
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let dict = dict.clone();
+
         let avp = Grouped::new(vec![
             avp!(416, None, 0, Enumerated::new(1)),
             avp!(415, None, 0, Unsigned32::new(1000)),
@@ -84,7 +92,7 @@ mod tests {
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = std::io::Cursor::new(&encoded);
-        let avp = Grouped::decode_from(&mut cursor, encoded.len()).unwrap();
+        let avp = Grouped::decode_from(&mut cursor, encoded.len(), &dict).unwrap();
         assert_eq!(avp.avps().len(), 2);
         assert_eq!(avp.avps()[0].get_code(), 416);
         assert_eq!(avp.avps()[1].get_code(), 415);
