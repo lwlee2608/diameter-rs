@@ -59,7 +59,7 @@ pub mod flags {
 pub struct DiameterMessage {
     header: DiameterHeader,
     avps: Vec<Avp>,
-    dictionary: Option<Arc<Dictionary>>,
+    dictionary: Arc<Dictionary>,
 }
 
 /// Represents the header part of a Diameter message.
@@ -129,7 +129,7 @@ impl DiameterMessage {
         DiameterMessage {
             header,
             avps,
-            dictionary: None,
+            dictionary: Arc::new(Dictionary::new()), // empty dictionary
         }
     }
 
@@ -154,7 +154,7 @@ impl DiameterMessage {
         DiameterMessage {
             header,
             avps,
-            dictionary: Some(dictionary),
+            dictionary,
         }
     }
 
@@ -175,13 +175,8 @@ impl DiameterMessage {
         self.avps.push(avp);
     }
 
-    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) {
-        let avp_definition = self
-            .dictionary
-            .as_ref()
-            .unwrap()
-            .get_avp_by_name(avp_name)
-            .unwrap();
+    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Option<()> {
+        let avp_definition = self.dictionary.get_avp_by_name(avp_name)?;
 
         let avp_flags = if avp_definition.m_flag {
             avp::flags::M
@@ -196,7 +191,9 @@ impl DiameterMessage {
             value,
         );
 
-        self.add_avp(avp)
+        self.add_avp(avp);
+
+        Some(())
     }
 
     /// Returns the total length of the Diameter message, including the header and AVPs.
@@ -253,10 +250,11 @@ impl DiameterMessage {
         Ok(DiameterMessage {
             header,
             avps,
-            dictionary: None,
+            dictionary: Arc::new(Dictionary::new()),
         })
     }
 
+    // TODO: remove this!
     pub fn decode_from_with_dict<R: Read + Seek>(
         reader: &mut R,
         dict: Arc<Dictionary>,
@@ -283,7 +281,7 @@ impl DiameterMessage {
         Ok(DiameterMessage {
             header,
             avps,
-            dictionary: Some(dict),
+            dictionary: dict,
         })
     }
 
@@ -466,7 +464,6 @@ impl fmt::Display for ApplicationId {
 
 #[cfg(test)]
 mod tests {
-    use crate::avp;
     use crate::avp::enumerated::Enumerated;
     use crate::avp::flags::M;
     use crate::avp::group::Grouped;
@@ -474,6 +471,7 @@ mod tests {
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
     use crate::avp::AvpValue;
+    use crate::avp::Integer32;
     use crate::dictionary;
 
     use super::*;
@@ -628,11 +626,44 @@ mod tests {
             Arc::new(dict),
         );
 
-        message.add_avp_by_name("Origin-Host", Identity::new("host.example.com").into());
-        message.add_avp_by_name("Origin-Realm", Identity::new("realm.example.com").into());
-        message.add_avp_by_name("Session-Id", UTF8String::new("ses;12345888").into());
-        message.add_avp_by_name("Service-Context-Id", Unsigned32::new(2001).into());
+        assert_eq!(
+            message
+                .add_avp_by_name("Origin-Host", Identity::new("host.example.com").into())
+                .is_some(),
+            true
+        );
 
-        println!("diameter message: {}", message);
+        assert_eq!(
+            message
+                .add_avp_by_name("Origin-Realm", Identity::new("realm.example.com").into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Session-Id", UTF8String::new("ses;12345888").into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Service-Context-Id", Unsigned32::new(2001).into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Does-Not-Exist", Integer32::new(1234).into())
+                .is_none(),
+            true
+        );
+
+        assert_eq!(message.get_avp(264).is_some(), true);
+        assert_eq!(message.get_avp(296).is_some(), true);
+        assert_eq!(message.get_avp(263).is_some(), true);
+        assert_eq!(message.get_avp(415).is_none(), true);
     }
 }
