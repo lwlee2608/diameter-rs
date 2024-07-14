@@ -1,5 +1,3 @@
-use num_traits::ToPrimitive;
-
 use crate::error::Error;
 use crate::error::Result;
 use std::fmt;
@@ -41,7 +39,7 @@ impl Address {
         let avp = match b {
             [0, 1] => {
                 if len != 6 {
-                    return Err(Error::DecodeError("Invalid address length".into()));
+                    return Err(Error::DecodeError("invalid ipv4 address length".into()));
                 }
                 let mut b = [0; 4];
                 reader.read_exact(&mut b)?;
@@ -50,7 +48,7 @@ impl Address {
             }
             [0, 2] => {
                 if len != 18 {
-                    return Err(Error::DecodeError("Invalid address length".into()));
+                    return Err(Error::DecodeError("invalid ipv6 address length".into()));
                 }
                 let mut b = [0; 16];
                 reader.read_exact(&mut b)?;
@@ -69,19 +67,24 @@ impl Address {
             [0, 8] => {
                 if len > 17 {
                     return Err(Error::DecodeError(
-                        "E164 address should not exceed max length of 15".into(),
+                        "E.164 address should not exceed max length of 15".into(),
+                    ));
+                } else if len < 3 {
+                    return Err(Error::DecodeError(
+                        "E.164 address should have at least 1 byte".into(),
                     ));
                 }
                 let mut b = [0; 15];
                 let actual_len: usize = len - 2;
                 let b = &mut b[0..actual_len];
                 reader.read_exact(b)?;
-                let s = String::from_utf8(b.to_vec())
-                    .map_err(|e| Error::DecodeError(format!("invalid UTF8String: {}", e)))?;
+                let s = String::from_utf8(b.to_vec()).map_err(|e| {
+                    Error::DecodeError(format!("invalid E.164 address value: {}", e))
+                })?;
 
                 Address(Value::E164(s))
             }
-            _ => return Err(Error::DecodeError("Unsupported address type".into())),
+            _ => return Err(Error::DecodeError("unsupported address type".into())),
         };
         Ok(avp)
     }
@@ -108,7 +111,7 @@ impl Address {
         match &self.0 {
             Value::IPv4(_) => 6,
             Value::IPv6(_) => 18,
-            Value::E164(utf8string) => utf8string.len().to_u32().unwrap(),
+            Value::E164(str) => str.len() as u32,
         }
     }
 }
