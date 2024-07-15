@@ -10,6 +10,7 @@ use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
 use diameter::dictionary;
+use diameter::dictionary::Dictionary;
 use diameter::flags;
 use diameter::ApplicationId;
 use diameter::CommandCode;
@@ -53,6 +54,18 @@ fn bench_decode_message(b: &mut Bencher) {
 }
 
 #[bench]
+fn bench_decode_message_with_dict(b: &mut Bencher) {
+    let dict = dictionary::DEFAULT_DICT.read().unwrap();
+    let dict = Arc::new(dict.clone());
+
+    let data = test_data_2();
+    b.iter(|| {
+        let mut cursor = Cursor::new(&data);
+        black_box(DiameterMessage::decode_from_with_dict(&mut cursor, Arc::clone(&dict)).unwrap())
+    });
+}
+
+#[bench]
 fn bench_encode_message(b: &mut Bencher) {
     let data = test_data_2();
     let mut cursor = Cursor::new(&data);
@@ -67,7 +80,10 @@ fn bench_encode_message(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_cca(b: &mut Bencher) {
-    let message = cca_message();
+    let dict = dictionary::DEFAULT_DICT.read().unwrap();
+    let dict = Arc::new(dict.clone());
+
+    let message = cca_message(dict);
     let mut data = Vec::new();
     message.encode_to(&mut data).unwrap();
 
@@ -82,7 +98,7 @@ fn bench_decode_cca_with_dict(b: &mut Bencher) {
     let dict = dictionary::DEFAULT_DICT.read().unwrap();
     let dict = Arc::new(dict.clone());
 
-    let message = cca_message();
+    let message = cca_message(Arc::clone(&dict));
     let mut data = Vec::new();
     message.encode_to(&mut data).unwrap();
 
@@ -94,7 +110,10 @@ fn bench_decode_cca_with_dict(b: &mut Bencher) {
 
 #[bench]
 fn bench_encode_cca(b: &mut Bencher) {
-    let message = cca_message();
+    let dict = dictionary::DEFAULT_DICT.read().unwrap();
+    let dict = Arc::new(dict.clone());
+
+    let message = cca_message(dict);
     let mut encoded = Vec::new();
     b.iter(|| {
         encoded.clear();
@@ -130,13 +149,14 @@ fn test_data_2() -> &'static [u8] {
     ];
 }
 
-fn cca_message() -> DiameterMessage {
+fn cca_message(dict: Arc<Dictionary>) -> DiameterMessage {
     let mut message = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
         flags::REQUEST | flags::PROXYABLE,
         1123158610,
         3102381851,
+        dict,
     );
 
     message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));

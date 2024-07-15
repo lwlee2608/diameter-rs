@@ -109,31 +109,32 @@ pub enum ApplicationId {
 impl DiameterMessage {
     /// Constructs a new `DiameterMessage` with the specified parameters.
     /// Initializes the header with given values and an empty list of AVPs.
-    pub fn new(
-        code: CommandCode,
-        application_id: ApplicationId,
-        flags: u8,
-        hop_by_hop_id: u32,
-        end_to_end_id: u32,
-    ) -> DiameterMessage {
-        let header = DiameterHeader {
-            version: 1,
-            length: HEADER_LENGTH,
-            flags,
-            code,
-            application_id,
-            hop_by_hop_id,
-            end_to_end_id,
-        };
-        let avps = Vec::new();
-        DiameterMessage {
-            header,
-            avps,
-            dictionary: Arc::new(Dictionary::new()), // empty dictionary
-        }
-    }
+    // pub fn new(
+    //     code: CommandCode,
+    //     application_id: ApplicationId,
+    //     flags: u8,
+    //     hop_by_hop_id: u32,
+    //     end_to_end_id: u32,
+    // ) -> DiameterMessage {
+    //     let header = DiameterHeader {
+    //         version: 1,
+    //         length: HEADER_LENGTH,
+    //         flags,
+    //         code,
+    //         application_id,
+    //         hop_by_hop_id,
+    //         end_to_end_id,
+    //     };
+    //     let avps = Vec::new();
+    //     DiameterMessage {
+    //         header,
+    //         avps,
+    //         dictionary: Arc::new(Dictionary::new()), // empty dictionary
+    //     }
+    // }
 
-    pub fn new_with_dict(
+    // pub fn new_with_dict(
+    pub fn new(
         code: CommandCode,
         application_id: ApplicationId,
         flags: u8,
@@ -559,12 +560,16 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_diameter_struct() {
+        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let dict = Arc::new(dict.clone());
+
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
             flags::REQUEST | flags::PROXYABLE,
             1123158610,
             3102381851,
+            dict,
         );
 
         message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
@@ -615,15 +620,15 @@ mod tests {
     #[test]
     fn test_new_diameter_message() {
         let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = dict.clone();
+        let dict = Arc::new(dict.clone());
 
-        let mut message = DiameterMessage::new_with_dict(
+        let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
             flags::REQUEST,
             1234,
             5678,
-            Arc::new(dict),
+            dict,
         );
 
         assert_eq!(

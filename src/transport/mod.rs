@@ -96,7 +96,7 @@ mod tests {
     async fn test_diameter_transport() {
         // Dictionary
         let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = Arc::new(dict.clone());
+        let dict = dict.clone();
 
         // Diameter Server
         let mut server =
@@ -104,27 +104,32 @@ mod tests {
                 .await
                 .unwrap();
 
-        let dict_ref = Arc::clone(&dict);
+        let dict_ref = Arc::new(dict.clone());
         tokio::spawn(async move {
+            let dict_ref2 = Arc::clone(&dict_ref);
             server
                 .listen(
-                    |req| async move {
-                        println!("Request : {}", req);
+                    move |req| {
+                        let dict_ref2 = Arc::clone(&dict_ref2);
+                        async move {
+                            println!("Request : {}", req);
 
-                        let mut res = DiameterMessage::new(
-                            req.get_command_code(),
-                            req.get_application_id(),
-                            req.get_flags() ^ flags::REQUEST,
-                            req.get_hop_by_hop_id(),
-                            req.get_end_to_end_id(),
-                        );
-                        res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-                        res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-                        res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
-                        res.add_avp(avp!(416, None, M, Enumerated::new(1)));
-                        res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-                        res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
-                        Ok(res)
+                            let mut res = DiameterMessage::new(
+                                req.get_command_code(),
+                                req.get_application_id(),
+                                req.get_flags() ^ flags::REQUEST,
+                                req.get_hop_by_hop_id(),
+                                req.get_end_to_end_id(),
+                                dict_ref2,
+                            );
+                            res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+                            res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+                            res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
+                            res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+                            res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+                            res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+                            Ok(res)
+                        }
                     },
                     dict_ref,
                 )
@@ -139,17 +144,20 @@ mod tests {
         };
         let mut client = DiameterClient::new("localhost:3868", client_config);
         let mut handler = client.connect().await.unwrap();
+        let dict_ref = Arc::new(dict.clone());
         tokio::spawn(async move {
-            DiameterClient::handle(&mut handler, Arc::clone(&dict)).await;
+            DiameterClient::handle(&mut handler, dict_ref).await;
         });
 
         // Send Single CCR
+        let dict_ref = Arc::new(dict.clone());
         let mut ccr = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
             flags::REQUEST,
             1123158611,
             3102381851,
+            Arc::clone(&dict_ref),
         );
         ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
         ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
@@ -178,6 +186,7 @@ mod tests {
                 flags::REQUEST,
                 seq_num,
                 seq_num,
+                Arc::clone(&dict_ref),
             );
             ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
             ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
