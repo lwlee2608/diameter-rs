@@ -109,31 +109,6 @@ pub enum ApplicationId {
 impl DiameterMessage {
     /// Constructs a new `DiameterMessage` with the specified parameters.
     /// Initializes the header with given values and an empty list of AVPs.
-    // pub fn new(
-    //     code: CommandCode,
-    //     application_id: ApplicationId,
-    //     flags: u8,
-    //     hop_by_hop_id: u32,
-    //     end_to_end_id: u32,
-    // ) -> DiameterMessage {
-    //     let header = DiameterHeader {
-    //         version: 1,
-    //         length: HEADER_LENGTH,
-    //         flags,
-    //         code,
-    //         application_id,
-    //         hop_by_hop_id,
-    //         end_to_end_id,
-    //     };
-    //     let avps = Vec::new();
-    //     DiameterMessage {
-    //         header,
-    //         avps,
-    //         dictionary: Arc::new(Dictionary::new()), // empty dictionary
-    //     }
-    // }
-
-    // pub fn new_with_dict(
     pub fn new(
         code: CommandCode,
         application_id: ApplicationId,
@@ -618,7 +593,7 @@ mod tests {
     }
 
     #[test]
-    fn test_new_diameter_message() {
+    fn test_add_avp_by_name() {
         let dict = dictionary::DEFAULT_DICT.read().unwrap();
         let dict = Arc::new(dict.clone());
 

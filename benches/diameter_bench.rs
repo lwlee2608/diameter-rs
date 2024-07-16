@@ -55,8 +55,9 @@ fn bench_decode_message(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_message_with_dict(b: &mut Bencher) {
-    let dict = dictionary::DEFAULT_DICT.read().unwrap();
-    let dict = Arc::new(dict.clone());
+    let mut dict = Dictionary::new();
+    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Arc::new(dict);
 
     let data = test_data_2();
     b.iter(|| {
@@ -80,8 +81,9 @@ fn bench_encode_message(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_cca(b: &mut Bencher) {
-    let dict = dictionary::DEFAULT_DICT.read().unwrap();
-    let dict = Arc::new(dict.clone());
+    let mut dict = Dictionary::new();
+    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Arc::new(dict);
 
     let message = cca_message(dict);
     let mut data = Vec::new();
@@ -95,8 +97,9 @@ fn bench_decode_cca(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_cca_with_dict(b: &mut Bencher) {
-    let dict = dictionary::DEFAULT_DICT.read().unwrap();
-    let dict = Arc::new(dict.clone());
+    let mut dict = Dictionary::new();
+    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Arc::new(dict);
 
     let message = cca_message(Arc::clone(&dict));
     let mut data = Vec::new();
@@ -110,8 +113,9 @@ fn bench_decode_cca_with_dict(b: &mut Bencher) {
 
 #[bench]
 fn bench_encode_cca(b: &mut Bencher) {
-    let dict = dictionary::DEFAULT_DICT.read().unwrap();
-    let dict = Arc::new(dict.clone());
+    let mut dict = Dictionary::new();
+    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Arc::new(dict);
 
     let message = cca_message(dict);
     let mut encoded = Vec::new();

@@ -22,14 +22,10 @@ async fn main() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     // Load dictionary
-    {
-        let mut dictionary = dictionary::DEFAULT_DICT.write().unwrap();
-        let xml = fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap();
-        dictionary.load_xml(&xml);
-    }
-
-    let dict = dictionary::DEFAULT_DICT.read().unwrap();
-    let dict = Arc::new(dict.clone());
+    let mut dict = Dictionary::new();
+    dict.load_xml(&fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap());
+    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Arc::new(dict);
 
     // Initialize a Diameter client and connect it to the server
     let client_config = DiameterClientConfig {
