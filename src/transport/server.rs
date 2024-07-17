@@ -1,9 +1,11 @@
 //! Diameter Protocol Server
 use crate::diameter::DiameterMessage;
+use crate::dictionary::Dictionary;
 use crate::error::Result;
 use crate::transport::Codec;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
@@ -46,15 +48,16 @@ impl DiameterServer {
     /// Each connection is handled in its own asynchronous task.
     ///
     /// Args:
-    ///     handler: A function or closure that takes a `DiameterMessage` and returns a `Result`
+    ///    * handler: A function or closure that takes a `DiameterMessage` and returns a `Result`
     ///              with either the response `DiameterMessage` or an `Error`. This handler
     ///              is responsible for processing the incoming messages and determining the
     ///              appropriate responses.
+    ///    * dict: A reference to the `Dictionary` object to use for decoding messages.
     ///
     /// Returns:
     ///     A `Result` indicating the success or failure of the operation. Errors could occur
     ///     during the acceptance of new connections or during the message handling process.
-    pub async fn listen<F, Fut>(&mut self, handler: F) -> Result<()>
+    pub async fn listen<F, Fut>(&mut self, handler: F, dict: Arc<Dictionary>) -> Result<()>
     where
         F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
@@ -67,7 +70,12 @@ impl DiameterServer {
                     let (stream, peer_addr) = self.listener.accept().await?;
                     match acceptor.accept(stream).await {
                         Ok(stream) => {
-                            Self::handle_peer(peer_addr, stream, handler.clone());
+                            Self::handle_peer(
+                                peer_addr,
+                                stream,
+                                handler.clone(),
+                                Arc::clone(&dict),
+                            );
                         }
                         Err(e) => {
                             log::error!("TLS handshake failed: {:?}", e);
@@ -76,13 +84,13 @@ impl DiameterServer {
                 }
                 None => {
                     let (stream, peer_addr) = self.listener.accept().await?;
-                    Self::handle_peer(peer_addr, stream, handler.clone());
+                    Self::handle_peer(peer_addr, stream, handler.clone(), Arc::clone(&dict));
                 }
             };
         }
     }
 
-    fn handle_peer<F, Fut, S>(peer_addr: SocketAddr, stream: S, handler: F)
+    fn handle_peer<F, Fut, S>(peer_addr: SocketAddr, stream: S, handler: F, dict: Arc<Dictionary>)
     where
         F: Fn(DiameterMessage) -> Fut + Clone + Send + 'static,
         Fut: Future<Output = Result<DiameterMessage>> + Send + 'static,
@@ -90,7 +98,7 @@ impl DiameterServer {
     {
         tokio::spawn(async move {
             log::info!("[{}] Connection established", peer_addr);
-            match Self::process_incoming_message(stream, handler).await {
+            match Self::process_incoming_message(stream, handler, dict).await {
                 Ok(_) => {
                     log::info!("[{}] Connection closed", peer_addr);
                 }
@@ -101,7 +109,11 @@ impl DiameterServer {
         });
     }
 
-    async fn process_incoming_message<F, Fut, S>(mut stream: S, handler: F) -> Result<()>
+    async fn process_incoming_message<F, Fut, S>(
+        mut stream: S,
+        handler: F,
+        dict: Arc<Dictionary>,
+    ) -> Result<()>
     where
         F: Fn(DiameterMessage) -> Fut,
         Fut: Future<Output = Result<DiameterMessage>>,
@@ -109,7 +121,7 @@ impl DiameterServer {
     {
         loop {
             // Read and decode the request
-            let req = match Codec::decode(&mut stream).await {
+            let req = match Codec::decode(&mut stream, Arc::clone(&dict)).await {
                 Ok(req) => req,
                 Err(e) => match e {
                     crate::error::Error::IoError(ref e)

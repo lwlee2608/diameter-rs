@@ -30,7 +30,10 @@
 //!   +-+-+-+-+-+-+-+-+
 //! ```
 
+use crate::avp;
 use crate::avp::Avp;
+use crate::avp::AvpValue;
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -38,6 +41,7 @@ use std::fmt;
 use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
+use std::sync::Arc;
 
 pub const HEADER_LENGTH: u32 = 20;
 
@@ -50,11 +54,13 @@ pub mod flags {
 
 /// Represents a Diameter message as defined in RFC 6733.
 ///
-/// It consists of a standard header and a list of Attribute-Value Pairs (AVPs).
+/// It consists of a standard header, a list of Attribute-Value Pairs (AVPs)
+/// and a reference to the dictionary used for decoding AVPs.
 #[derive(Debug)]
 pub struct DiameterMessage {
     header: DiameterHeader,
     avps: Vec<Avp>,
+    dictionary: Arc<Dictionary>,
 }
 
 /// Represents the header part of a Diameter message.
@@ -110,6 +116,7 @@ impl DiameterMessage {
         flags: u8,
         hop_by_hop_id: u32,
         end_to_end_id: u32,
+        dictionary: Arc<Dictionary>,
     ) -> DiameterMessage {
         let header = DiameterHeader {
             version: 1,
@@ -121,7 +128,11 @@ impl DiameterMessage {
             end_to_end_id,
         };
         let avps = Vec::new();
-        DiameterMessage { header, avps }
+        DiameterMessage {
+            header,
+            avps,
+            dictionary,
+        }
     }
 
     /// Returns a reference to the AVP with the specified code,
@@ -139,6 +150,27 @@ impl DiameterMessage {
     pub fn add_avp(&mut self, avp: Avp) {
         self.header.length += avp.get_length() + avp.get_padding() as u32;
         self.avps.push(avp);
+    }
+
+    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Option<()> {
+        let avp_definition = self.dictionary.get_avp_by_name(avp_name)?;
+
+        let avp_flags = if avp_definition.m_flag {
+            avp::flags::M
+        } else {
+            0
+        };
+
+        let avp = Avp::new(
+            avp_definition.code,
+            avp_definition.vendor_id,
+            avp_flags,
+            value,
+        );
+
+        self.add_avp(avp);
+
+        Some(())
     }
 
     /// Returns the total length of the Diameter message, including the header and AVPs.
@@ -172,14 +204,17 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
+    pub fn decode_from<R: Read + Seek>(
+        reader: &mut R,
+        dict: Arc<Dictionary>,
+    ) -> Result<DiameterMessage> {
         let header = DiameterHeader::decode_from(reader)?;
         let mut avps = Vec::new();
 
         let total_length = header.length;
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
-            let avp = Avp::decode_from(reader)?;
+            let avp = Avp::decode_from(reader, dict.as_ref())?;
             offset += avp.get_length();
             offset += avp.get_padding() as u32;
             avps.push(avp);
@@ -192,7 +227,11 @@ impl DiameterMessage {
             ));
         }
 
-        Ok(DiameterMessage { header, avps })
+        Ok(DiameterMessage {
+            header,
+            avps,
+            dictionary: dict,
+        })
     }
 
     /// Encodes the Diameter message to the given writer.
@@ -374,7 +413,6 @@ impl fmt::Display for ApplicationId {
 
 #[cfg(test)]
 mod tests {
-    use crate::avp;
     use crate::avp::enumerated::Enumerated;
     use crate::avp::flags::M;
     use crate::avp::group::Grouped;
@@ -382,6 +420,8 @@ mod tests {
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
     use crate::avp::AvpValue;
+    use crate::avp::Integer32;
+    use crate::dictionary;
 
     use super::*;
     use std::io::Cursor;
@@ -398,7 +438,6 @@ mod tests {
 
         let mut cursor = Cursor::new(&data);
         let header = DiameterHeader::decode_from(&mut cursor).unwrap();
-        // let header = DiameterHeader::decode_from(&data).unwrap();
 
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
@@ -415,6 +454,9 @@ mod tests {
 
     #[test]
     fn test_decode_encode_diameter_message() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
         let data = [
             0x01, 0x00, 0x00, 0x34, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
@@ -432,7 +474,7 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
         println!("diameter message: {}", message);
 
         let avps = &message.avps;
@@ -468,12 +510,16 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_diameter_struct() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
             ApplicationId::CreditControl,
             flags::REQUEST | flags::PROXYABLE,
             1123158610,
             3102381851,
+            Arc::clone(&dict),
         );
 
         message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
@@ -500,13 +546,16 @@ mod tests {
 
         // decode
         let mut cursor = Cursor::new(&encoded);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
 
         println!("decoded message:\n{}", message);
     }
 
     #[test]
     fn test_decode_ccr() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
         let data = [
             0x01, 0x00, 0x00, 0x54, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x08, 0x40, 0x00, 0x00, 0x0E,
@@ -517,7 +566,62 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
         println!("diameter message: {}", message);
+    }
+
+    #[test]
+    fn test_add_avp_by_name() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
+        let mut message = DiameterMessage::new(
+            CommandCode::CreditControl,
+            ApplicationId::CreditControl,
+            flags::REQUEST,
+            1234,
+            5678,
+            dict,
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Origin-Host", Identity::new("host.example.com").into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Origin-Realm", Identity::new("realm.example.com").into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Session-Id", UTF8String::new("ses;12345888").into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Service-Context-Id", Unsigned32::new(2001).into())
+                .is_some(),
+            true
+        );
+
+        assert_eq!(
+            message
+                .add_avp_by_name("Does-Not-Exist", Integer32::new(1234).into())
+                .is_none(),
+            true
+        );
+
+        assert_eq!(message.get_avp(264).is_some(), true);
+        assert_eq!(message.get_avp(296).is_some(), true);
+        assert_eq!(message.get_avp(263).is_some(), true);
+        assert_eq!(message.get_avp(415).is_none(), true);
     }
 }

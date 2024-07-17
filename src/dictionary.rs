@@ -9,20 +9,20 @@ use std::sync::RwLock;
 
 use crate::avp::AvpType;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Dictionary {
     avps: BTreeMap<AvpKey, AvpDefinition>,
     applications: HashMap<String, ApplicationId>,
     commands: HashMap<String, CommandCode>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AvpKey {
     Code(u32),
     CodeAndVendor(u32, u32),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AvpDefinition {
     pub code: u32,
     pub vendor_id: Option<u32>,
@@ -32,12 +32,18 @@ pub struct AvpDefinition {
 }
 
 impl Dictionary {
-    pub fn new() -> Self {
-        Dictionary {
+    pub fn new(xmls: &[&str]) -> Self {
+        let mut dict = Dictionary {
             avps: BTreeMap::new(),
             applications: HashMap::new(),
             commands: HashMap::new(),
+        };
+
+        for xml in xmls {
+            dict.load_xml(xml)
         }
+
+        dict
     }
 
     pub fn load_xml(&mut self, xml: &str) {
@@ -233,8 +239,7 @@ pub fn parse(xml: &str, dictionary: &mut Dictionary) {
 lazy_static! {
     pub static ref DEFAULT_DICT: RwLock<Dictionary> = {
         let xml = &DEFAULT_DICT_XML;
-        let mut dictionary = Dictionary::new();
-        parse(xml, &mut dictionary);
+        let dictionary = Dictionary::new(&[&xml]);
         RwLock::new(dictionary)
     };
     pub static ref DEFAULT_DICT_XML: &'static str = {
@@ -1314,7 +1319,7 @@ mod tests {
 
     #[test]
     fn test_default_dict() {
-        let dict = DEFAULT_DICT.read().unwrap();
+        let dict = Dictionary::new(&[&DEFAULT_DICT_XML]);
 
         assert_eq!(dict.get_avp(416, None).unwrap().name, "CC-Request-Type");
         assert_eq!(dict.get_avp(264, None).unwrap().name, "Origin-Host");
@@ -1341,7 +1346,7 @@ mod tests {
 
     #[test]
     fn test_add_avp() {
-        let mut dict = DEFAULT_DICT.write().unwrap();
+        let mut dict = Dictionary::new(&[&DEFAULT_DICT_XML]);
 
         dict.add_avp(AvpDefinition {
             code: 602,

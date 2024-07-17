@@ -9,12 +9,15 @@ use diameter::avp::Grouped;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
+use diameter::dictionary;
+use diameter::dictionary::Dictionary;
 use diameter::flags;
 use diameter::ApplicationId;
 use diameter::CommandCode;
 use diameter::DiameterHeader;
 use diameter::DiameterMessage;
 use std::io::Cursor;
+use std::sync::Arc;
 use test::black_box;
 use test::Bencher;
 
@@ -43,18 +46,24 @@ fn bench_encode_header(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_message(b: &mut Bencher) {
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
     let data = test_data_2();
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, Arc::clone(&dict)).unwrap())
     });
 }
 
 #[bench]
 fn bench_encode_message(b: &mut Bencher) {
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
     let data = test_data_2();
     let mut cursor = Cursor::new(&data);
-    let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+    let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
 
     let mut encoded = Vec::new();
     b.iter(|| {
@@ -65,19 +74,25 @@ fn bench_encode_message(b: &mut Bencher) {
 
 #[bench]
 fn bench_decode_cca(b: &mut Bencher) {
-    let message = cca_message();
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
+    let message = cca_message(Arc::clone(&dict));
     let mut data = Vec::new();
     message.encode_to(&mut data).unwrap();
 
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, Arc::clone(&dict)).unwrap())
     });
 }
 
 #[bench]
 fn bench_encode_cca(b: &mut Bencher) {
-    let message = cca_message();
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
+    let message = cca_message(dict);
     let mut encoded = Vec::new();
     b.iter(|| {
         encoded.clear();
@@ -113,13 +128,14 @@ fn test_data_2() -> &'static [u8] {
     ];
 }
 
-fn cca_message() -> DiameterMessage {
+fn cca_message(dict: Arc<Dictionary>) -> DiameterMessage {
     let mut message = DiameterMessage::new(
         CommandCode::CreditControl,
         ApplicationId::CreditControl,
         flags::REQUEST | flags::PROXYABLE,
         1123158610,
         3102381851,
+        dict,
     );
 
     message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
