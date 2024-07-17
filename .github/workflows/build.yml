@@ -21,7 +21,4 @@ jobs:
       run: cargo build --verbose
 
     - name: Run tests
-      env:
-      # TODO: REMOVE this later
-        RUST_TEST_THREADS: 1
       run: cargo test --verbose
