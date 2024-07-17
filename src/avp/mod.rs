@@ -387,9 +387,7 @@ impl Avp {
         };
     }
 
-    // TODO maybe deprecate this function
-    pub fn from_name(avp_name: &str, value: AvpValue) -> Result<Avp> {
-        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    pub fn from_name(avp_name: &str, value: AvpValue, dict: &Dictionary) -> Result<Avp> {
         let avp_def = dict
             .get_avp_by_name(avp_name)
             .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;
@@ -674,13 +672,15 @@ macro_rules! avp {
     ($code:expr, $vendor_id:expr, $flags:expr, $value:expr $(,)?) => {
         Avp::new($code, $vendor_id, $flags, $value.into())
     };
-    ($name:expr, $value:expr $(,)?) => {
-        Avp::from_name($name, $value.into())
+    ($name:expr, $value:expr, $dict:expr $(,)?) => {
+        Avp::from_name($name, $value.into(), $dict)
     };
 }
 
 #[cfg(test)]
 mod tests {
+    use flags::M;
+
     use super::*;
     use std::io::Cursor;
 
@@ -727,5 +727,25 @@ mod tests {
         let mut encoded = Vec::new();
         header.encode_to(&mut encoded).unwrap();
         assert_eq!(encoded, data);
+    }
+
+    #[test]
+    fn test_avp_macro() {
+        let avp = avp!(264, None, M, Identity::new("host.example.com"));
+        assert_eq!(avp.get_code(), 264);
+        assert_eq!(avp.get_flags().mandatory, true);
+        assert_eq!(avp.get_flags().private, false);
+        assert_eq!(avp.get_flags().vendor, false);
+        assert_eq!(avp.get_vendor_id(), None);
+        assert_eq!(avp.get_identity().unwrap().value(), "host.example.com");
+
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let avp = avp!("Session-Id", UTF8String::new("session-id"), &dict).unwrap();
+        assert_eq!(avp.get_code(), 263);
+        assert_eq!(avp.get_flags().mandatory, true);
+        assert_eq!(avp.get_flags().private, false);
+        assert_eq!(avp.get_flags().vendor, false);
+        assert_eq!(avp.get_vendor_id(), None);
+        assert_eq!(avp.get_utf8string().unwrap().value(), "session-id");
     }
 }

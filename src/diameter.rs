@@ -437,7 +437,6 @@ mod tests {
 
         let mut cursor = Cursor::new(&data);
         let header = DiameterHeader::decode_from(&mut cursor).unwrap();
-        // let header = DiameterHeader::decode_from(&data).unwrap();
 
         assert_eq!(header.version, 1);
         assert_eq!(header.length, 20);
