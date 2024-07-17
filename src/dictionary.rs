@@ -32,14 +32,6 @@ pub struct AvpDefinition {
 }
 
 impl Dictionary {
-    // pub fn new() -> Self {
-    //     Dictionary {
-    //         avps: BTreeMap::new(),
-    //         applications: HashMap::new(),
-    //         commands: HashMap::new(),
-    //     }
-    // }
-
     pub fn new(xmls: &[&str]) -> Self {
         let mut dict = Dictionary {
             avps: BTreeMap::new(),

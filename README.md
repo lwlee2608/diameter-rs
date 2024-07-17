@@ -50,33 +50,48 @@ use diameter::flags;
 
 #[tokio::main]
 async fn main() {
+    // Diameter Dictionary
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
     // Set up a Diameter server listening on a specific port
     let mut server = DiameterServer::new("0.0.0.0:3868").await.unwrap();
 
     // Asynchronously handle incoming requests to the server
-    server.listen(|req| -> Result<DiameterMessage> {
-        println!("Received request: {}", req);
+    let dict_ref = Arc::clone(&dict);
+    server
+        .listen(
+            move |req| {
+                let dict_ref2 = Arc::clone(&dict);
+                async move {
+                    println!("Received request: {}", req);
 
-        // Create a response message based on the received request
-        let mut res = DiameterMessage::new(
-            req.get_command_code(),
-            req.get_application_id(),
-            req.get_flags() ^ flags::REQUEST,
-            req.get_hop_by_hop_id(),
-            req.get_end_to_end_id(),
-        );
+                    // Create a response message based on the received request
+                    let mut res = DiameterMessage::new(
+                        req.get_command_code(),
+                        req.get_application_id(),
+                        req.get_flags() ^ flags::REQUEST,
+                        req.get_hop_by_hop_id(),
+                        req.get_end_to_end_id(),
+                        dict_ref2,
+                    );
 
-        // Add various Attribute-Value Pairs (AVPs) to the response
-        res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-        res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-        res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
-        res.add_avp(avp!(416, None, M, Enumerated::new(1)));
-        res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-        res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+                    // Add various Attribute-Value Pairs (AVPs) to the response
+                    res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
+                    res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
+                    res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
+                    res.add_avp(avp!(416, None, M, Enumerated::new(1)));
+                    res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+                    res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
 
-        // Return the response
-        Ok(res)
-    }).await.unwrap();
+                    // Return the response
+                    Ok(res)
+                }
+            },
+            dict_ref,
+        )
+        .await
+        .unwrap();
 }
 
 ```
@@ -94,15 +109,22 @@ use diameter::avp::UTF8String;
 use diameter::avp::flags::M;
 use diameter::transport::DiameterClient;
 use diameter::{ApplicationId, CommandCode, DiameterMessage};
+use diameter::dictionary::{self, Dictionary};
 use diameter::flags;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
+    // Diameter Dictionary
+    let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
     // Initialize a Diameter client and connect it to the server
     let mut client = DiameterClient::new("localhost:3868");
     let mut handler = client.connect().await.unwrap();
+    let dict_ref = Arc::clone(&dict);
     tokio::spawn(async move {
-        DiameterClient::handle(&mut handler).await;
+        DiameterClient::handle(&mut handler, dict_ref).await;
     });
 
     // Create a Credit-Control-Request (CCR) Diameter message
@@ -112,6 +134,7 @@ async fn main() {
         flags::REQUEST,
         1123158611,
         3102381851,
+        dict,
     );
     ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
     ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
