@@ -54,7 +54,8 @@ pub mod flags {
 
 /// Represents a Diameter message as defined in RFC 6733.
 ///
-/// It consists of a standard header and a list of Attribute-Value Pairs (AVPs).
+/// It consists of a standard header, a list of Attribute-Value Pairs (AVPs)
+/// and a reference to the dictionary used for decoding AVPs.
 #[derive(Debug)]
 pub struct DiameterMessage {
     header: DiameterHeader,

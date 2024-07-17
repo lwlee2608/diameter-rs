@@ -27,6 +27,7 @@ impl Codec {
     ///
     /// # Arguments
     /// * `reader` - A mutable reference to an object implementing `AsyncReadExt` and `Unpin`.
+    /// * `dict` - A reference to the `Dictionary` object to use for decoding.
     pub async fn decode<R>(reader: &mut R, dict: Arc<Dictionary>) -> Result<DiameterMessage>
     where
         R: AsyncReadExt + Unpin,

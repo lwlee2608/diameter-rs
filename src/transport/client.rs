@@ -111,7 +111,8 @@ impl DiameterClient {
     /// The method is intended to be run in a separate task.
     ///
     /// Args:
-    ///    handler: The `ClientHandler` for reading messages from the server.
+    ///    * handler: The `ClientHandler` for reading messages from the server.
+    ///    * dictionary: The `Dictionary` for decoding messages.
     ///
     /// Example:
     ///    ```no_run

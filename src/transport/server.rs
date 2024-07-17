@@ -48,10 +48,11 @@ impl DiameterServer {
     /// Each connection is handled in its own asynchronous task.
     ///
     /// Args:
-    ///     handler: A function or closure that takes a `DiameterMessage` and returns a `Result`
+    ///    * handler: A function or closure that takes a `DiameterMessage` and returns a `Result`
     ///              with either the response `DiameterMessage` or an `Error`. This handler
     ///              is responsible for processing the incoming messages and determining the
     ///              appropriate responses.
+    ///    * dict: A reference to the `Dictionary` object to use for decoding messages.
     ///
     /// Returns:
     ///     A `Result` indicating the success or failure of the operation. Errors could occur
