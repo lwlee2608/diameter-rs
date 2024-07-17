@@ -32,12 +32,26 @@ pub struct AvpDefinition {
 }
 
 impl Dictionary {
-    pub fn new() -> Self {
-        Dictionary {
+    // pub fn new() -> Self {
+    //     Dictionary {
+    //         avps: BTreeMap::new(),
+    //         applications: HashMap::new(),
+    //         commands: HashMap::new(),
+    //     }
+    // }
+
+    pub fn new(xmls: &[&str]) -> Self {
+        let mut dict = Dictionary {
             avps: BTreeMap::new(),
             applications: HashMap::new(),
             commands: HashMap::new(),
+        };
+
+        for xml in xmls {
+            dict.load_xml(xml)
         }
+
+        dict
     }
 
     pub fn load_xml(&mut self, xml: &str) {
@@ -233,8 +247,7 @@ pub fn parse(xml: &str, dictionary: &mut Dictionary) {
 lazy_static! {
     pub static ref DEFAULT_DICT: RwLock<Dictionary> = {
         let xml = &DEFAULT_DICT_XML;
-        let mut dictionary = Dictionary::new();
-        parse(xml, &mut dictionary);
+        let dictionary = Dictionary::new(&[&xml]);
         RwLock::new(dictionary)
     };
     pub static ref DEFAULT_DICT_XML: &'static str = {

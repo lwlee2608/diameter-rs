@@ -8,6 +8,7 @@ use diameter::avp::Identity;
 use diameter::avp::UTF8String;
 use diameter::avp::Unsigned32;
 use diameter::dictionary;
+use diameter::dictionary::Dictionary;
 use diameter::flags;
 use diameter::transport::DiameterServer;
 use diameter::transport::DiameterServerConfig;
@@ -41,9 +42,10 @@ async fn main() {
         .init();
 
     // Load dictionary
-    let mut dict = dictionary::Dictionary::new();
-    dict.load_xml(&fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap());
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Dictionary::new(&[
+        &dictionary::DEFAULT_DICT_XML,
+        &fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap(),
+    ]);
 
     let config = DiameterServerConfig { native_tls: None };
 
@@ -53,13 +55,13 @@ async fn main() {
     log::info!("Listening at {}", addr);
 
     // Asynchronously handle incoming requests to the server
-    let dict_ref = Arc::new(dict.clone());
-    let dict_ref2 = Arc::clone(&dict_ref);
+    let dict = Arc::new(dict);
+    let dict_ref2 = Arc::clone(&dict);
     server
         .listen(
             move |req| {
                 // todo
-                let dict_ref = Arc::clone(&dict_ref);
+                let dict_ref = Arc::clone(&dict);
                 async move {
                     log::info!("Received request: {}", req);
 

@@ -387,8 +387,9 @@ impl Avp {
         };
     }
 
+    // TODO maybe deprecate this function
     pub fn from_name(avp_name: &str, value: AvpValue) -> Result<Avp> {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
         let avp_def = dict
             .get_avp_by_name(avp_name)
             .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;

@@ -116,12 +116,13 @@ impl DiameterClient {
     /// Example:
     ///    ```no_run
     ///    use diameter::transport::client::{ClientHandler, DiameterClient, DiameterClientConfig};
-    ///    use diameter::dictionary::Dictionary;
+    ///    use diameter::dictionary;
     ///    use std::sync::Arc;
     ///
     ///    #[tokio::main]
     ///    async fn main() {
-    ///        let dict = Arc::new(Dictionary::new());
+    ///        let dict = dictionary::Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+    ///        let dict = Arc::new(dict);
     ///        let config = DiameterClientConfig { use_tls: false, verify_cert: false };
     ///        let mut client = DiameterClient::new("localhost:3868", config);
     ///        let mut handler = client.connect().await.unwrap();

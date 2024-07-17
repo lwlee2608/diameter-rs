@@ -44,33 +44,37 @@ fn bench_encode_header(b: &mut Bencher) {
     });
 }
 
-#[bench]
-fn bench_decode_message(b: &mut Bencher) {
-    let data = test_data_2();
-    b.iter(|| {
-        let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
-    });
-}
+// #[bench]
+// fn bench_decode_message(b: &mut Bencher) {
+//     let data = test_data_2();
+//     b.iter(|| {
+//         let mut cursor = Cursor::new(&data);
+//         black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+//     });
+// }
 
 #[bench]
 fn bench_decode_message_with_dict(b: &mut Bencher) {
-    let mut dict = Dictionary::new();
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Dictionary::new_with_xml(&[&dictionary::DEFAULT_DICT_XML]);
     let dict = Arc::new(dict);
+
+    // dict.load_xml(&dictionary::DEFAULT_DICT_XML);
 
     let data = test_data_2();
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from_with_dict(&mut cursor, Arc::clone(&dict)).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, Arc::clone(&dict)).unwrap())
     });
 }
 
 #[bench]
 fn bench_encode_message(b: &mut Bencher) {
+    let dict = Dictionary::new_with_xml(&[&dictionary::DEFAULT_DICT_XML]);
+    let dict = Arc::new(dict);
+
     let data = test_data_2();
     let mut cursor = Cursor::new(&data);
-    let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+    let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
 
     let mut encoded = Vec::new();
     b.iter(|| {
@@ -79,26 +83,24 @@ fn bench_encode_message(b: &mut Bencher) {
     });
 }
 
-#[bench]
-fn bench_decode_cca(b: &mut Bencher) {
-    let mut dict = Dictionary::new();
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
-    let dict = Arc::new(dict);
-
-    let message = cca_message(dict);
-    let mut data = Vec::new();
-    message.encode_to(&mut data).unwrap();
-
-    b.iter(|| {
-        let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
-    });
-}
+// #[bench]
+// fn bench_decode_cca(b: &mut Bencher) {
+//     let mut dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+//     let dict = Arc::new(dict);
+//
+//     let message = cca_message(dict);
+//     let mut data = Vec::new();
+//     message.encode_to(&mut data).unwrap();
+//
+//     b.iter(|| {
+//         let mut cursor = Cursor::new(&data);
+//         black_box(DiameterMessage::decode_from(&mut cursor).unwrap())
+//     });
+// }
 
 #[bench]
 fn bench_decode_cca_with_dict(b: &mut Bencher) {
-    let mut dict = Dictionary::new();
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let mut dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
     let dict = Arc::new(dict);
 
     let message = cca_message(Arc::clone(&dict));
@@ -107,14 +109,13 @@ fn bench_decode_cca_with_dict(b: &mut Bencher) {
 
     b.iter(|| {
         let mut cursor = Cursor::new(&data);
-        black_box(DiameterMessage::decode_from_with_dict(&mut cursor, Arc::clone(&dict)).unwrap())
+        black_box(DiameterMessage::decode_from(&mut cursor, Arc::clone(&dict)).unwrap())
     });
 }
 
 #[bench]
 fn bench_encode_cca(b: &mut Bencher) {
-    let mut dict = Dictionary::new();
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let mut dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
     let dict = Arc::new(dict);
 
     let message = cca_message(dict);

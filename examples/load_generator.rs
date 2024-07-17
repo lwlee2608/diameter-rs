@@ -46,9 +46,10 @@ async fn main() {
         .init();
 
     // Load dictionary
-    let mut dict = dictionary::Dictionary::new();
-    dict.load_xml(&fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap());
-    dict.load_xml(&dictionary::DEFAULT_DICT_XML);
+    let dict = Dictionary::new(&[
+        &dictionary::DEFAULT_DICT_XML,
+        &fs::read_to_string("dict/3gpp-ro-rf.xml").unwrap(),
+    ]);
     let dict = Arc::new(dict);
 
     let local = LocalSet::new();

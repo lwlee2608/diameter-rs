@@ -78,11 +78,12 @@ mod tests {
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::AvpValue;
     use crate::{avp, dictionary};
+    use std::sync::Arc;
 
     #[test]
     fn test_encode_decode() {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = dict.clone();
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
 
         let avp = Grouped::new(vec![
             avp!(416, None, 0, Enumerated::new(1)),

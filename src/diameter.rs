@@ -203,35 +203,36 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
-        let header = DiameterHeader::decode_from(reader)?;
-        let mut avps = Vec::new();
-
-        let total_length = header.length;
-        let mut offset = HEADER_LENGTH;
-        while offset < total_length {
-            let avp = Avp::decode_from(reader)?;
-            offset += avp.get_length();
-            offset += avp.get_padding() as u32;
-            avps.push(avp);
-        }
-
-        // sanity check, make sure everything is read
-        if offset != total_length {
-            return Err(Error::DecodeError(
-                "invalid diameter message, length mismatch".into(),
-            ));
-        }
-
-        Ok(DiameterMessage {
-            header,
-            avps,
-            dictionary: Arc::new(Dictionary::new()),
-        })
-    }
+    // pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
+    //     let header = DiameterHeader::decode_from(reader)?;
+    //     let mut avps = Vec::new();
+    //
+    //     let total_length = header.length;
+    //     let mut offset = HEADER_LENGTH;
+    //     while offset < total_length {
+    //         let avp = Avp::decode_from(reader)?;
+    //         offset += avp.get_length();
+    //         offset += avp.get_padding() as u32;
+    //         avps.push(avp);
+    //     }
+    //
+    //     // sanity check, make sure everything is read
+    //     if offset != total_length {
+    //         return Err(Error::DecodeError(
+    //             "invalid diameter message, length mismatch".into(),
+    //         ));
+    //     }
+    //
+    //     Ok(DiameterMessage {
+    //         header,
+    //         avps,
+    //         dictionary: Arc::new(Dictionary::new()),
+    //     })
+    // }
 
     // TODO: remove this!
-    pub fn decode_from_with_dict<R: Read + Seek>(
+    // pub fn decode_from_with_dict<R: Read + Seek>(
+    pub fn decode_from<R: Read + Seek>(
         reader: &mut R,
         dict: Arc<Dictionary>,
     ) -> Result<DiameterMessage> {
@@ -482,6 +483,9 @@ mod tests {
 
     #[test]
     fn test_decode_encode_diameter_message() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
         let data = [
             0x01, 0x00, 0x00, 0x34, // version, length
             0x80, 0x00, 0x01, 0x10, // flags, code
@@ -499,7 +503,7 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
         println!("diameter message: {}", message);
 
         let avps = &message.avps;
@@ -535,8 +539,8 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn test_diameter_struct() {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = Arc::new(dict.clone());
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
 
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,
@@ -544,7 +548,7 @@ mod tests {
             flags::REQUEST | flags::PROXYABLE,
             1123158610,
             3102381851,
-            dict,
+            Arc::clone(&dict),
         );
 
         message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
@@ -571,13 +575,16 @@ mod tests {
 
         // decode
         let mut cursor = Cursor::new(&encoded);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
 
         println!("decoded message:\n{}", message);
     }
 
     #[test]
     fn test_decode_ccr() {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
         let data = [
             0x01, 0x00, 0x00, 0x54, 0x00, 0x00, 0x01, 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x08, 0x40, 0x00, 0x00, 0x0E,
@@ -588,14 +595,14 @@ mod tests {
         ];
 
         let mut cursor = Cursor::new(&data);
-        let message = DiameterMessage::decode_from(&mut cursor).unwrap();
+        let message = DiameterMessage::decode_from(&mut cursor, dict).unwrap();
         println!("diameter message: {}", message);
     }
 
     #[test]
     fn test_add_avp_by_name() {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = Arc::new(dict.clone());
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
 
         let mut message = DiameterMessage::new(
             CommandCode::CreditControl,

@@ -48,7 +48,7 @@ impl Codec {
 
         // Decode Response
         let mut cursor = Cursor::new(buffer);
-        DiameterMessage::decode_from_with_dict(&mut cursor, dict)
+        DiameterMessage::decode_from(&mut cursor, dict)
     }
 
     /// Asynchronously encodes a DiameterMessage and writes it to a writer.
