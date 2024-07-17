@@ -26,7 +26,7 @@ impl Grouped {
 
         let mut offset = 0;
         while offset < len {
-            let avp = Avp::decode_from_with_dict(reader, dict)?;
+            let avp = Avp::decode_from(reader, dict)?;
             offset += avp.get_length() as usize;
             offset += avp.get_padding() as usize;
             avps.push(avp);

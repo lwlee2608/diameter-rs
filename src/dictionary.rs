@@ -1327,7 +1327,7 @@ mod tests {
 
     #[test]
     fn test_default_dict() {
-        let dict = DEFAULT_DICT.read().unwrap();
+        let dict = Dictionary::new(&[&DEFAULT_DICT_XML]);
 
         assert_eq!(dict.get_avp(416, None).unwrap().name, "CC-Request-Type");
         assert_eq!(dict.get_avp(264, None).unwrap().name, "Origin-Host");
@@ -1354,7 +1354,7 @@ mod tests {
 
     #[test]
     fn test_add_avp() {
-        let mut dict = DEFAULT_DICT.write().unwrap();
+        let mut dict = Dictionary::new(&[&DEFAULT_DICT_XML]);
 
         dict.add_avp(AvpDefinition {
             code: 602,

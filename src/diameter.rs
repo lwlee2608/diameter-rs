@@ -203,35 +203,6 @@ impl DiameterMessage {
     }
 
     /// Decodes a Diameter message from the given byte slice.
-    // pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<DiameterMessage> {
-    //     let header = DiameterHeader::decode_from(reader)?;
-    //     let mut avps = Vec::new();
-    //
-    //     let total_length = header.length;
-    //     let mut offset = HEADER_LENGTH;
-    //     while offset < total_length {
-    //         let avp = Avp::decode_from(reader)?;
-    //         offset += avp.get_length();
-    //         offset += avp.get_padding() as u32;
-    //         avps.push(avp);
-    //     }
-    //
-    //     // sanity check, make sure everything is read
-    //     if offset != total_length {
-    //         return Err(Error::DecodeError(
-    //             "invalid diameter message, length mismatch".into(),
-    //         ));
-    //     }
-    //
-    //     Ok(DiameterMessage {
-    //         header,
-    //         avps,
-    //         dictionary: Arc::new(Dictionary::new()),
-    //     })
-    // }
-
-    // TODO: remove this!
-    // pub fn decode_from_with_dict<R: Read + Seek>(
     pub fn decode_from<R: Read + Seek>(
         reader: &mut R,
         dict: Arc<Dictionary>,
@@ -242,7 +213,7 @@ impl DiameterMessage {
         let total_length = header.length;
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
-            let avp = Avp::decode_from_with_dict(reader, dict.as_ref())?;
+            let avp = Avp::decode_from(reader, dict.as_ref())?;
             offset += avp.get_length();
             offset += avp.get_padding() as u32;
             avps.push(avp);

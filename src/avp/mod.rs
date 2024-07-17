@@ -422,18 +422,11 @@ impl Avp {
         &self.value
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R) -> Result<Avp> {
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        Avp::decode_from_with_dict(reader, &dict)
-    }
-
-    pub fn decode_from_with_dict<R: Read + Seek>(reader: &mut R, dict: &Dictionary) -> Result<Avp> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R, dict: &Dictionary) -> Result<Avp> {
         let header = AvpHeader::decode_from(reader)?;
 
         let header_length = if header.flags.vendor { 12 } else { 8 };
         let value_length = header.length - header_length;
-
-        // let dict = dictionary::DEFAULT_DICT.read().unwrap();
 
         let avp_type = dict
             .get_avp_type(header.code, header.vendor_id)

@@ -86,6 +86,7 @@ mod tests {
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
     use crate::dictionary;
+    use crate::dictionary::Dictionary;
     use crate::transport::DiameterClient;
     use crate::transport::DiameterClientConfig;
     use crate::transport::DiameterServer;
@@ -95,8 +96,7 @@ mod tests {
     #[tokio::test]
     async fn test_diameter_transport() {
         // Dictionary
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-        let dict = dict.clone();
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
 
         // Diameter Server
         let mut server =
