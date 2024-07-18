@@ -26,7 +26,7 @@ Add this crate to your Rust project by adding the following to your `Cargo.toml`
 
 ```toml
 [dependencies]
-diameter-rs = "^0.6"
+diameter-rs = "^0.7"
 ```
 
 
