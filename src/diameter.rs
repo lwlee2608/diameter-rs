@@ -147,9 +147,14 @@ impl DiameterMessage {
     }
 
     /// Adds an AVP to the message.
-    pub fn add_avp(&mut self, avp: Avp) {
+    pub fn add(&mut self, avp: Avp) {
         self.header.length += avp.get_length() + avp.get_padding() as u32;
         self.avps.push(avp);
+    }
+
+    pub fn add_avp(&mut self, code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) {
+        let avp = Avp::new(code, vendor_id, flags, value, Arc::clone(&self.dictionary));
+        self.add(avp);
     }
 
     pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Option<()> {
@@ -166,9 +171,10 @@ impl DiameterMessage {
             avp_definition.vendor_id,
             avp_flags,
             value,
+            self.dictionary.clone(),
         );
 
-        self.add_avp(avp);
+        self.add(avp);
 
         Some(())
     }
@@ -214,7 +220,7 @@ impl DiameterMessage {
         let total_length = header.length;
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
-            let avp = Avp::decode_from(reader, dict.as_ref())?;
+            let avp = Avp::decode_from(reader, Arc::clone(&dict))?;
             offset += avp.get_length();
             offset += avp.get_padding() as u32;
             avps.push(avp);
@@ -256,7 +262,7 @@ impl DiameterMessage {
         )?;
 
         for avp in &self.avps {
-            avp.fmt(f, depth)?;
+            avp.fmt(f, depth, self.dictionary.as_ref())?;
             write!(f, "\n")?;
         }
 
@@ -522,13 +528,13 @@ mod tests {
             Arc::clone(&dict),
         );
 
-        message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-        message.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-        message.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-        message.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
-        message.add_avp(avp!(416, None, M, Enumerated::new(1)));
-        message.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-        message.add_avp(avp!(
+        message.add_avp(264, None, M, Identity::new("host.example.com").into());
+        message.add_avp(296, None, M, Identity::new("realm.example.com").into());
+        message.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+        message.add_avp(268, None, M, Unsigned32::new(2001).into());
+        message.add_avp(416, None, M, Enumerated::new(1).into());
+        message.add_avp(415, None, M, Unsigned32::new(1000).into());
+        message.add_avp(
             873,
             Some(10415),
             M,
@@ -536,9 +542,29 @@ mod tests {
                 874,
                 Some(10415),
                 M,
-                Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
-            )]),
-        ));
+                Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"), dict.clone())]),
+                dict.clone(),
+            )]).into(),
+        );
+
+        // message.add(avp!(264, None, M, Identity::new("host.example.com"), dict.clone()));
+        // message.add(avp!(296, None, M, Identity::new("realm.example.com"), dict.clone()));
+        // message.add(avp!(263, None, M, UTF8String::new("ses;12345888"), dict.clone()));
+        // message.add(avp!(268, None, M, Unsigned32::new(2001), dict.clone()));
+        // message.add(avp!(416, None, M, Enumerated::new(1), dict.clone()));
+        // message.add(avp!(415, None, M, Unsigned32::new(1000), dict.clone()));
+
+        // message.add_avp(avp!(
+        //     873,
+        //     Some(10415),
+        //     M,
+        //     Grouped::new(vec![avp!(
+        //         874,
+        //         Some(10415),
+        //         M,
+        //         Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
+        //     )]),
+        // ));
 
         // encode
         let mut encoded = Vec::new();

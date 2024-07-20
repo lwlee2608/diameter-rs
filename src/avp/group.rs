@@ -1,9 +1,10 @@
 use crate::avp::Avp;
-use crate::dictionary::Dictionary;
+use crate::dictionary::{self, Dictionary};
 use crate::error::{Error, Result};
 use std::io::Read;
 use std::io::Seek;
 use std::io::Write;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct Grouped(Vec<Avp>);
@@ -20,13 +21,13 @@ impl Grouped {
     pub fn decode_from<R: Read + Seek>(
         reader: &mut R,
         len: usize,
-        dict: &Dictionary,
+        dict: Arc<Dictionary>,
     ) -> Result<Grouped> {
         let mut avps = Vec::new();
 
         let mut offset = 0;
         while offset < len {
-            let avp = Avp::decode_from(reader, dict)?;
+            let avp = Avp::decode_from(reader, Arc::clone(&dict))?;
             offset += avp.get_length() as usize;
             offset += avp.get_padding() as usize;
             avps.push(avp);
@@ -57,9 +58,10 @@ impl Grouped {
     }
 
     pub fn fmt(&self, f: &mut std::fmt::Formatter<'_>, depth: usize) -> std::fmt::Result {
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
         for avp in &self.0 {
             write!(f, "\n")?;
-            avp.fmt(f, depth + 1)?;
+            avp.fmt(f, depth + 1, &dict)?;
         }
         Ok(())
     }
@@ -86,14 +88,14 @@ mod tests {
         let dict = Arc::new(dict);
 
         let avp = Grouped::new(vec![
-            avp!(416, None, 0, Enumerated::new(1)),
-            avp!(415, None, 0, Unsigned32::new(1000)),
+            avp!(416, None, 0, Enumerated::new(1), Arc::clone(&dict)),
+            avp!(415, None, 0, Unsigned32::new(1000), Arc::clone(&dict)),
         ]);
         assert_eq!(avp.avps().len(), 2);
         let mut encoded = Vec::new();
         avp.encode_to(&mut encoded).unwrap();
         let mut cursor = std::io::Cursor::new(&encoded);
-        let avp = Grouped::decode_from(&mut cursor, encoded.len(), &dict).unwrap();
+        let avp = Grouped::decode_from(&mut cursor, encoded.len(), dict).unwrap();
         assert_eq!(avp.avps().len(), 2);
         assert_eq!(avp.avps()[0].get_code(), 416);
         assert_eq!(avp.avps()[1].get_code(), 415);
