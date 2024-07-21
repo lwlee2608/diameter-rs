@@ -68,7 +68,7 @@ async fn main() {
                         req.get_flags() ^ flags::REQUEST,
                         req.get_hop_by_hop_id(),
                         req.get_end_to_end_id(),
-                        dict_ref2,
+                        Arc::clone(&dict_ref2),
                     );
 
                     match req.get_command_code() {
@@ -87,30 +87,18 @@ async fn main() {
                             res.add_avp(416, None, M, Enumerated::new(1).into());
                             res.add_avp(415, None, M, Unsigned32::new(1000).into());
                             res.add_avp(268, None, M, Unsigned32::new(2001).into());
-                            // TODO fix me
-                            // res.add_avp(avp!(
-                            //     456,
-                            //     None,
-                            //     M,
-                            //     Grouped::new(vec![
-                            //         avp!(439, None, M, Unsigned32::new(7786)),
-                            //         avp!(432, None, M, Unsigned32::new(7786)),
-                            //         avp!(268, None, M, Unsigned32::new(2001)),
-                            //     ])
-                            // ));
-                            // res.add_avp(avp!(
-                            //     873,
-                            //     Some(10415),
-                            //     M,
-                            //     Grouped::new(vec![avp!(
-                            //         874,
-                            //         Some(10415),
-                            //         M,
-                            //         Grouped::new(
-                            //             vec![avp!(30, None, M, UTF8String::new("10099")),]
-                            //         )
-                            //     ),])
-                            // ));
+
+                            let mut mscc = Grouped::new(vec![], Arc::clone(&dict_ref2));
+                            mscc.add_avp(439, None, M, Unsigned32::new(7786).into());
+                            mscc.add_avp(432, None, M, Unsigned32::new(7786).into());
+                            mscc.add_avp(268, None, M, Unsigned32::new(2001).into());
+                            res.add_avp(456, None, M, mscc.into());
+
+                            let mut ps_info = Grouped::new(vec![], Arc::clone(&dict_ref2));
+                            ps_info.add_avp(30, None, M, UTF8String::new("10999").into());
+                            let mut service_info = Grouped::new(vec![], Arc::clone(&dict_ref2));
+                            service_info.add_avp(874, Some(10415), M, ps_info.into());
+                            res.add_avp(873, Some(10415), M, service_info.into());
                         }
                     }
 

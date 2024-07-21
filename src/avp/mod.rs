@@ -44,7 +44,7 @@ pub mod unsigned64;
 pub mod uri;
 pub mod utf8string;
 
-use crate::dictionary::{self, Dictionary};
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use core::fmt;
 use std::io::Read;
@@ -675,7 +675,8 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        // let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = self.dictionary.as_ref();
         self.fmt(f, 0, &dict)
     }
 }
@@ -691,6 +692,7 @@ macro_rules! avp {
 
 #[cfg(test)]
 mod tests {
+    use crate::dictionary;
     use flags::M;
 
     use super::*;
