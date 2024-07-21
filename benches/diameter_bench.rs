@@ -1,9 +1,7 @@
 #![feature(test)]
 
 extern crate test;
-use diameter::avp;
 use diameter::avp::flags::M;
-use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Grouped;
 use diameter::avp::Identity;
@@ -135,26 +133,22 @@ fn cca_message(dict: Arc<Dictionary>) -> DiameterMessage {
         flags::REQUEST | flags::PROXYABLE,
         1123158610,
         3102381851,
-        dict,
+        Arc::clone(&dict),
     );
 
-    message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-    message.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    message.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-    message.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
-    message.add_avp(avp!(416, None, M, Enumerated::new(1)));
-    message.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-    message.add_avp(avp!(
-        873,
-        Some(10415),
-        M,
-        Grouped::new(vec![avp!(
-            874,
-            Some(10415),
-            M,
-            Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
-        )]),
-    ));
+    message.add_avp(264, None, M, Identity::new("host.example.com").into());
+    message.add_avp(296, None, M, Identity::new("realm.example.com").into());
+    message.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+    message.add_avp(268, None, M, Unsigned32::new(2001).into());
+    message.add_avp(416, None, M, Enumerated::new(1).into());
+    message.add_avp(415, None, M, Unsigned32::new(1000).into());
+
+    let mut ps_information = Grouped::new(vec![], Arc::clone(&dict));
+    ps_information.add_avp(30, None, M, UTF8String::new("10999").into());
+    let mut service_information = Grouped::new(vec![], Arc::clone(&dict));
+    service_information.add_avp(874, Some(10415), M, ps_information.into());
+
+    message.add_avp(873, Some(10415), M, service_information.into());
     message
 }
 

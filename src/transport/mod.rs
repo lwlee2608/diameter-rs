@@ -76,13 +76,11 @@ impl Codec {
 
 #[cfg(test)]
 mod tests {
-    use crate::avp;
     use crate::avp::enumerated::Enumerated;
     use crate::avp::flags::M;
     use crate::avp::identity::Identity;
     use crate::avp::unsigned32::Unsigned32;
     use crate::avp::utf8string::UTF8String;
-    use crate::avp::Avp;
     use crate::avp::Unsigned64;
     use crate::diameter::flags;
     use crate::diameter::{ApplicationId, CommandCode, DiameterMessage};
@@ -123,12 +121,12 @@ mod tests {
                                 req.get_end_to_end_id(),
                                 dict_ref2,
                             );
-                            res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-                            res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-                            res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
-                            res.add_avp(avp!(416, None, M, Enumerated::new(1)));
-                            res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-                            res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+                            res.add_avp(264, None, M, Identity::new("host.example.com").into());
+                            res.add_avp(296, None, M, Identity::new("realm.example.com").into());
+                            res.add_avp(263, None, M, UTF8String::new("ses;123458890").into());
+                            res.add_avp(416, None, M, Enumerated::new(1).into());
+                            res.add_avp(415, None, M, Unsigned32::new(1000).into());
+                            res.add_avp(268, None, M, Unsigned32::new(2001).into());
                             Ok(res)
                         }
                     },
@@ -160,11 +158,11 @@ mod tests {
             3102381851,
             Arc::clone(&dict_ref),
         );
-        ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-        ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-        ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-        ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-        ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+        ccr.add_avp(264, None, M, Identity::new("host.example.com").into());
+        ccr.add_avp(296, None, M, Identity::new("realm.example.com").into());
+        ccr.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+        ccr.add_avp(416, None, M, Enumerated::new(1).into());
+        ccr.add_avp(415, None, M, Unsigned32::new(1000).into());
         // let cca = client.send_message(ccr).await.unwrap();
         let response = client.send_message(ccr).await.unwrap();
         let cca = response.await.unwrap();
@@ -189,11 +187,11 @@ mod tests {
                 seq_num,
                 Arc::clone(&dict_ref),
             );
-            ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-            ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-            ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-            ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-            ccr.add_avp(avp!(415, None, M, Unsigned64::new(1000)));
+            ccr.add_avp(264, None, M, Identity::new("host.example.com").into());
+            ccr.add_avp(296, None, M, Identity::new("realm.example.com").into());
+            ccr.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+            ccr.add_avp(416, None, M, Enumerated::new(1).into());
+            ccr.add_avp(415, None, M, Unsigned64::new(1000).into());
             let response = client.send_message(ccr).await.unwrap();
             let handle = tokio::spawn(async move {
                 let cca = response.await.unwrap();

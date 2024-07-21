@@ -1,9 +1,7 @@
 use chrono::Local;
-use diameter::avp;
 use diameter::avp::address::Value::IPv4;
 use diameter::avp::flags::M;
 use diameter::avp::Address;
-use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
@@ -107,16 +105,16 @@ async fn send_cer(client: &mut DiameterClient, dict: Arc<Dictionary>) {
         seq_num,
         dict,
     );
-    cer.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-    cer.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    cer.add_avp(avp!(
+    cer.add_avp(264, None, M, Identity::new("host.example.com").into());
+    cer.add_avp(296, None, M, Identity::new("realm.example.com").into());
+    cer.add_avp(
         257,
         None,
         M,
-        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
-    ));
-    cer.add_avp(avp!(266, None, M, Unsigned32::new(35838)));
-    cer.add_avp(avp!(269, None, M, UTF8String::new("diameter-rs")));
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1))).into(),
+    );
+    cer.add_avp(266, None, M, Unsigned32::new(35838).into());
+    cer.add_avp(269, None, M, UTF8String::new("diameter-rs").into());
 
     let response = client.send_message(cer).await.unwrap();
     let _cea = response.await.unwrap();
@@ -136,17 +134,17 @@ async fn send_ccr_i(
         seq_num,
         dict,
     );
-    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    ccr.add_avp(avp!(263, None, M, UTF8String::new(&session_id)));
-    ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-    ccr.add_avp(avp!(
+    ccr.add_avp(264, None, M, Identity::new("host.example.com").into());
+    ccr.add_avp(296, None, M, Identity::new("realm.example.com").into());
+    ccr.add_avp(263, None, M, UTF8String::new(&session_id).into());
+    ccr.add_avp(416, None, M, Enumerated::new(1).into());
+    ccr.add_avp(415, None, M, Unsigned32::new(1000).into());
+    ccr.add_avp(
         1228,
         Some(10415),
         M,
-        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
-    ));
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1))).into(),
+    );
 
     let response = client.send_message(ccr).await.unwrap();
     log::info!(
@@ -184,17 +182,17 @@ async fn send_ccr_t(
         seq_num,
         dict,
     );
-    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    ccr.add_avp(avp!(263, None, M, UTF8String::new(session_id)));
-    ccr.add_avp(avp!(416, None, M, Enumerated::new(3)));
-    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-    ccr.add_avp(avp!(
+    ccr.add_avp(264, None, M, Identity::new("host.example.com").into());
+    ccr.add_avp(296, None, M, Identity::new("realm.example.com").into());
+    ccr.add_avp(263, None, M, UTF8String::new(session_id).into());
+    ccr.add_avp(416, None, M, Enumerated::new(3).into());
+    ccr.add_avp(415, None, M, Unsigned32::new(1000).into());
+    ccr.add_avp(
         1228,
         Some(10415),
         M,
-        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1)))
-    ));
+        Address::new(IPv4(Ipv4Addr::new(127, 0, 0, 1))).into(),
+    );
 
     let response = client.send_message(ccr).await.unwrap();
     log::info!(

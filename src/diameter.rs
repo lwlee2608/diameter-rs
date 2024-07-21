@@ -30,7 +30,6 @@
 //!   +-+-+-+-+-+-+-+-+
 //! ```
 
-use crate::avp;
 use crate::avp::Avp;
 use crate::avp::AvpValue;
 use crate::dictionary::Dictionary;
@@ -60,7 +59,7 @@ pub mod flags {
 pub struct DiameterMessage {
     header: DiameterHeader,
     avps: Vec<Avp>,
-    dictionary: Arc<Dictionary>,
+    dict: Arc<Dictionary>,
 }
 
 /// Represents the header part of a Diameter message.
@@ -116,7 +115,7 @@ impl DiameterMessage {
         flags: u8,
         hop_by_hop_id: u32,
         end_to_end_id: u32,
-        dictionary: Arc<Dictionary>,
+        dict: Arc<Dictionary>,
     ) -> DiameterMessage {
         let header = DiameterHeader {
             version: 1,
@@ -128,11 +127,7 @@ impl DiameterMessage {
             end_to_end_id,
         };
         let avps = Vec::new();
-        DiameterMessage {
-            header,
-            avps,
-            dictionary,
-        }
+        DiameterMessage { header, avps, dict }
     }
 
     /// Returns a reference to the AVP with the specified code,
@@ -147,30 +142,22 @@ impl DiameterMessage {
     }
 
     /// Adds an AVP to the message.
-    pub fn add_avp(&mut self, avp: Avp) {
+    pub fn add(&mut self, avp: Avp) {
         self.header.length += avp.get_length() + avp.get_padding() as u32;
         self.avps.push(avp);
     }
 
-    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Option<()> {
-        let avp_definition = self.dictionary.get_avp_by_name(avp_name)?;
+    // Adds an AVP to the message with the specified parameters.
+    pub fn add_avp(&mut self, code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) {
+        let avp = Avp::new(code, vendor_id, flags, value, Arc::clone(&self.dict));
+        self.add(avp);
+    }
 
-        let avp_flags = if avp_definition.m_flag {
-            avp::flags::M
-        } else {
-            0
-        };
-
-        let avp = Avp::new(
-            avp_definition.code,
-            avp_definition.vendor_id,
-            avp_flags,
-            value,
-        );
-
-        self.add_avp(avp);
-
-        Some(())
+    /// Adds an AVP to the message by name.
+    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Result<()> {
+        let avp = Avp::from_name(avp_name, value, Arc::clone(&self.dict))?;
+        self.add(avp);
+        Ok(())
     }
 
     /// Returns the total length of the Diameter message, including the header and AVPs.
@@ -214,7 +201,7 @@ impl DiameterMessage {
         let total_length = header.length;
         let mut offset = HEADER_LENGTH;
         while offset < total_length {
-            let avp = Avp::decode_from(reader, dict.as_ref())?;
+            let avp = Avp::decode_from(reader, Arc::clone(&dict))?;
             offset += avp.get_length();
             offset += avp.get_padding() as u32;
             avps.push(avp);
@@ -227,11 +214,7 @@ impl DiameterMessage {
             ));
         }
 
-        Ok(DiameterMessage {
-            header,
-            avps,
-            dictionary: dict,
-        })
+        Ok(DiameterMessage { header, avps, dict })
     }
 
     /// Encodes the Diameter message to the given writer.
@@ -522,23 +505,19 @@ mod tests {
             Arc::clone(&dict),
         );
 
-        message.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-        message.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-        message.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-        message.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
-        message.add_avp(avp!(416, None, M, Enumerated::new(1)));
-        message.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-        message.add_avp(avp!(
-            873,
-            Some(10415),
-            M,
-            Grouped::new(vec![avp!(
-                874,
-                Some(10415),
-                M,
-                Grouped::new(vec![avp!(30, None, M, UTF8String::new("10999"))]),
-            )]),
-        ));
+        message.add_avp(264, None, M, Identity::new("host.example.com").into());
+        message.add_avp(296, None, M, Identity::new("realm.example.com").into());
+        message.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+        message.add_avp(268, None, M, Unsigned32::new(2001).into());
+        message.add_avp(416, None, M, Enumerated::new(1).into());
+        message.add_avp(415, None, M, Unsigned32::new(1000).into());
+
+        let mut ps_information = Grouped::new(vec![], Arc::clone(&dict));
+        ps_information.add_avp(30, None, M, UTF8String::new("10999").into());
+        let mut service_information = Grouped::new(vec![], Arc::clone(&dict));
+        service_information.add_avp(874, Some(10415), M, ps_information.into());
+
+        message.add_avp(873, Some(10415), M, service_information.into());
 
         // encode
         let mut encoded = Vec::new();
@@ -587,35 +566,35 @@ mod tests {
         assert_eq!(
             message
                 .add_avp_by_name("Origin-Host", Identity::new("host.example.com").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Origin-Realm", Identity::new("realm.example.com").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Session-Id", UTF8String::new("ses;12345888").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Service-Context-Id", Unsigned32::new(2001).into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Does-Not-Exist", Integer32::new(1234).into())
-                .is_none(),
+                .is_err(),
             true
         );
 

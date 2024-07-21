@@ -44,7 +44,7 @@ pub mod unsigned64;
 pub mod uri;
 pub mod utf8string;
 
-use crate::dictionary::{self, Dictionary};
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use core::fmt;
 use std::io::Read;
@@ -68,6 +68,7 @@ pub use crate::avp::unsigned32::Unsigned32;
 pub use crate::avp::unsigned64::Unsigned64;
 pub use crate::avp::uri::DiameterURI;
 pub use crate::avp::utf8string::UTF8String;
+pub use std::sync::Arc;
 
 pub mod flags {
     pub const V: u8 = 0x80;
@@ -80,6 +81,7 @@ pub struct Avp {
     header: AvpHeader,
     value: AvpValue,
     padding: u8,
+    dict: Arc<Dictionary>,
 }
 
 #[derive(Debug, Clone)]
@@ -367,7 +369,13 @@ impl AvpHeader {
 }
 
 impl Avp {
-    pub fn new(code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) -> Avp {
+    pub fn new(
+        code: u32,
+        vendor_id: Option<u32>,
+        flags: u8,
+        value: AvpValue,
+        dict: Arc<Dictionary>,
+    ) -> Avp {
         let header_length = if vendor_id.is_some() { 12 } else { 8 };
         let padding = Avp::pad_to_32_bits(value.length());
         let header = AvpHeader {
@@ -384,16 +392,23 @@ impl Avp {
             header,
             value,
             padding,
+            dict,
         };
     }
 
-    pub fn from_name(avp_name: &str, value: AvpValue, dict: &Dictionary) -> Result<Avp> {
+    pub fn from_name(avp_name: &str, value: AvpValue, dict: Arc<Dictionary>) -> Result<Avp> {
         let avp_def = dict
             .get_avp_by_name(avp_name)
             .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;
 
         let flags = if avp_def.m_flag { flags::M } else { 0 };
-        Ok(Avp::new(avp_def.code, avp_def.vendor_id, flags, value))
+        Ok(Avp::new(
+            avp_def.code,
+            avp_def.vendor_id,
+            flags,
+            value,
+            dict,
+        ))
     }
 
     pub fn get_code(&self) -> u32 {
@@ -420,7 +435,7 @@ impl Avp {
         &self.value
     }
 
-    pub fn decode_from<R: Read + Seek>(reader: &mut R, dict: &Dictionary) -> Result<Avp> {
+    pub fn decode_from<R: Read + Seek>(reader: &mut R, dict: Arc<Dictionary>) -> Result<Avp> {
         let header = AvpHeader::decode_from(reader)?;
 
         let header_length = if header.flags.vendor { 12 } else { 8 };
@@ -456,9 +471,11 @@ impl Avp {
                 AvpValue::DiameterURI(DiameterURI::decode_from(reader, value_length as usize)?)
             }
             AvpType::Time => AvpValue::Time(Time::decode_from(reader)?),
-            AvpType::Grouped => {
-                AvpValue::Grouped(Grouped::decode_from(reader, value_length as usize, &dict)?)
-            }
+            AvpType::Grouped => AvpValue::Grouped(Grouped::decode_from(
+                reader,
+                value_length as usize,
+                Arc::clone(&dict),
+            )?),
             AvpType::Unknown => return Err(Error::UnknownAvpCode(header.code)),
         };
 
@@ -472,6 +489,7 @@ impl Avp {
             header,
             value,
             padding,
+            dict,
         });
     }
 
@@ -624,9 +642,8 @@ impl Avp {
     pub fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
         let indent = "  ".repeat(depth.max(0));
 
-        let dict = dictionary::DEFAULT_DICT.read().unwrap();
-
-        let avp_name = dict
+        let avp_name = self
+            .dict
             .get_avp_name(self.get_code() as u32, self.get_vendor_id())
             .unwrap_or("Unknown");
 
@@ -669,8 +686,8 @@ impl fmt::Display for Avp {
 
 #[macro_export]
 macro_rules! avp {
-    ($code:expr, $vendor_id:expr, $flags:expr, $value:expr $(,)?) => {
-        Avp::new($code, $vendor_id, $flags, $value.into())
+    ($code:expr, $vendor_id:expr, $flags:expr, $value:expr, $dict:expr $(,)?) => {
+        Avp::new($code, $vendor_id, $flags, $value.into(), $dict)
     };
     ($name:expr, $value:expr, $dict:expr $(,)?) => {
         Avp::from_name($name, $value.into(), $dict)
@@ -679,6 +696,7 @@ macro_rules! avp {
 
 #[cfg(test)]
 mod tests {
+    use crate::dictionary;
     use flags::M;
 
     use super::*;
@@ -731,7 +749,16 @@ mod tests {
 
     #[test]
     fn test_avp_macro() {
-        let avp = avp!(264, None, M, Identity::new("host.example.com"));
+        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
+        let dict = Arc::new(dict);
+
+        let avp = avp!(
+            264,
+            None,
+            M,
+            Identity::new("host.example.com"),
+            Arc::clone(&dict)
+        );
         assert_eq!(avp.get_code(), 264);
         assert_eq!(avp.get_flags().mandatory, true);
         assert_eq!(avp.get_flags().private, false);
@@ -739,8 +766,12 @@ mod tests {
         assert_eq!(avp.get_vendor_id(), None);
         assert_eq!(avp.get_identity().unwrap().value(), "host.example.com");
 
-        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
-        let avp = avp!("Session-Id", UTF8String::new("session-id"), &dict).unwrap();
+        let avp = avp!(
+            "Session-Id",
+            UTF8String::new("session-id"),
+            Arc::clone(&dict)
+        )
+        .unwrap();
         assert_eq!(avp.get_code(), 263);
         assert_eq!(avp.get_flags().mandatory, true);
         assert_eq!(avp.get_flags().private, false);
