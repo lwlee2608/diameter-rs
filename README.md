@@ -37,9 +37,7 @@ Below is an example of creating a Diameter client that sends a Credit-Control-Re
 
 
 ```rust
-use diameter::avp;
 use diameter::avp::flags::M;
-use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
@@ -78,11 +76,11 @@ async fn main() {
         3102381851,
         dict,
     );
-    ccr.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-    ccr.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-    ccr.add_avp(avp!(263, None, M, UTF8String::new("ses;12345888")));
-    ccr.add_avp(avp!(416, None, M, Enumerated::new(1)));
-    ccr.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
+    ccr.add_avp(264, None, M, Identity::new("host.example.com").into());
+    ccr.add_avp(296, None, M, Identity::new("realm.example.com").into());
+    ccr.add_avp(263, None, M, UTF8String::new("ses;12345888").into());
+    ccr.add_avp(416, None, M, Enumerated::new(1).into());
+    ccr.add_avp(415, None, M, Unsigned32::new(1000).into());
 
     // Send the CCR message to the server and wait for a response
     let response = client.send_message(ccr).await.unwrap();
@@ -97,9 +95,7 @@ async fn main() {
 Below is an example of setting up a Diameter server that listens for incoming requests
 
 ```rust
-use diameter::avp;
 use diameter::avp::flags::M;
-use diameter::avp::Avp;
 use diameter::avp::Enumerated;
 use diameter::avp::Identity;
 use diameter::avp::UTF8String;
@@ -142,12 +138,12 @@ async fn main() {
                     );
 
                     // Add various Attribute-Value Pairs (AVPs) to the response
-                    res.add_avp(avp!(264, None, M, Identity::new("host.example.com")));
-                    res.add_avp(avp!(296, None, M, Identity::new("realm.example.com")));
-                    res.add_avp(avp!(263, None, M, UTF8String::new("ses;123458890")));
-                    res.add_avp(avp!(416, None, M, Enumerated::new(1)));
-                    res.add_avp(avp!(415, None, M, Unsigned32::new(1000)));
-                    res.add_avp(avp!(268, None, M, Unsigned32::new(2001)));
+                    res.add_avp(264, None, M, Identity::new("host.example.com").into());
+                    res.add_avp(296, None, M, Identity::new("realm.example.com").into());
+                    res.add_avp(263, None, M, UTF8String::new("ses;123458890").into());
+                    res.add_avp(416, None, M, Enumerated::new(1).into());
+                    res.add_avp(415, None, M, Unsigned32::new(1000).into());
+                    res.add_avp(268, None, M, Unsigned32::new(2001).into());
 
                     // Return the response
                     Ok(res)
