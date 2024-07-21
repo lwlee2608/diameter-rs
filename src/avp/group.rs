@@ -1,5 +1,5 @@
 use crate::avp::Avp;
-use crate::dictionary::{self, Dictionary};
+use crate::dictionary::Dictionary;
 use crate::error::{Error, Result};
 use std::io::Read;
 use std::io::Seek;
@@ -72,10 +72,9 @@ impl Grouped {
     }
 
     pub fn fmt(&self, f: &mut std::fmt::Formatter<'_>, depth: usize) -> std::fmt::Result {
-        let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
         for avp in &self.avps {
             write!(f, "\n")?;
-            avp.fmt(f, depth + 1, &dict)?;
+            avp.fmt(f, depth + 1)?;
         }
         Ok(())
     }

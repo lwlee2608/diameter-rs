@@ -59,7 +59,7 @@ pub mod flags {
 pub struct DiameterMessage {
     header: DiameterHeader,
     avps: Vec<Avp>,
-    dictionary: Arc<Dictionary>,
+    dict: Arc<Dictionary>,
 }
 
 /// Represents the header part of a Diameter message.
@@ -115,7 +115,7 @@ impl DiameterMessage {
         flags: u8,
         hop_by_hop_id: u32,
         end_to_end_id: u32,
-        dictionary: Arc<Dictionary>,
+        dict: Arc<Dictionary>,
     ) -> DiameterMessage {
         let header = DiameterHeader {
             version: 1,
@@ -127,11 +127,7 @@ impl DiameterMessage {
             end_to_end_id,
         };
         let avps = Vec::new();
-        DiameterMessage {
-            header,
-            avps,
-            dictionary,
-        }
+        DiameterMessage { header, avps, dict }
     }
 
     /// Returns a reference to the AVP with the specified code,
@@ -153,13 +149,13 @@ impl DiameterMessage {
 
     // Adds an AVP to the message with the specified parameters.
     pub fn add_avp(&mut self, code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) {
-        let avp = Avp::new(code, vendor_id, flags, value, Arc::clone(&self.dictionary));
+        let avp = Avp::new(code, vendor_id, flags, value, Arc::clone(&self.dict));
         self.add(avp);
     }
 
     /// Adds an AVP to the message by name.
     pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Result<()> {
-        let avp = Avp::from_name(avp_name, value, Arc::clone(&self.dictionary))?;
+        let avp = Avp::from_name(avp_name, value, Arc::clone(&self.dict))?;
         self.add(avp);
         Ok(())
     }
@@ -218,11 +214,7 @@ impl DiameterMessage {
             ));
         }
 
-        Ok(DiameterMessage {
-            header,
-            avps,
-            dictionary: dict,
-        })
+        Ok(DiameterMessage { header, avps, dict })
     }
 
     /// Encodes the Diameter message to the given writer.
@@ -247,7 +239,7 @@ impl DiameterMessage {
         )?;
 
         for avp in &self.avps {
-            avp.fmt(f, depth, self.dictionary.as_ref())?;
+            avp.fmt(f, depth)?;
             write!(f, "\n")?;
         }
 

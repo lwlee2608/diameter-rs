@@ -81,7 +81,7 @@ pub struct Avp {
     header: AvpHeader,
     value: AvpValue,
     padding: u8,
-    dictionary: Arc<Dictionary>,
+    dict: Arc<Dictionary>,
 }
 
 #[derive(Debug, Clone)]
@@ -392,7 +392,7 @@ impl Avp {
             header,
             value,
             padding,
-            dictionary: dict,
+            dict,
         };
     }
 
@@ -489,7 +489,7 @@ impl Avp {
             header,
             value,
             padding,
-            dictionary: dict,
+            dict,
         });
     }
 
@@ -639,12 +639,11 @@ impl Avp {
         }
     }
 
-    pub fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize, dict: &Dictionary) -> fmt::Result {
+    pub fn fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) -> fmt::Result {
         let indent = "  ".repeat(depth.max(0));
 
-        // let dict = dictionary::DEFAULT_DICT.read().unwrap();
-
-        let avp_name = dict
+        let avp_name = self
+            .dict
             .get_avp_name(self.get_code() as u32, self.get_vendor_id())
             .unwrap_or("Unknown");
 
@@ -681,8 +680,7 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let dict = self.dictionary.as_ref();
-        self.fmt(f, 0, &dict)
+        self.fmt(f, 0)
     }
 }
 
