@@ -681,7 +681,6 @@ fn get_bool_unicode(v: bool) -> &'static str {
 
 impl fmt::Display for Avp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
         let dict = self.dictionary.as_ref();
         self.fmt(f, 0, &dict)
     }
