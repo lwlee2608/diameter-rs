@@ -396,14 +396,20 @@ impl Avp {
         };
     }
 
-    // pub fn from_name(avp_name: &str, value: AvpValue, dict: &Dictionary) -> Result<Avp> {
-    //     let avp_def = dict
-    //         .get_avp_by_name(avp_name)
-    //         .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;
-    //
-    //     let flags = if avp_def.m_flag { flags::M } else { 0 };
-    //     Ok(Avp::new(avp_def.code, avp_def.vendor_id, flags, value))
-    // }
+    pub fn from_name(avp_name: &str, value: AvpValue, dict: Arc<Dictionary>) -> Result<Avp> {
+        let avp_def = dict
+            .get_avp_by_name(avp_name)
+            .ok_or(Error::UnknownAvpName(avp_name.to_string()))?;
+
+        let flags = if avp_def.m_flag { flags::M } else { 0 };
+        Ok(Avp::new(
+            avp_def.code,
+            avp_def.vendor_id,
+            flags,
+            value,
+            dict,
+        ))
+    }
 
     pub fn get_code(&self) -> u32 {
         self.header.code
@@ -685,9 +691,10 @@ impl fmt::Display for Avp {
 macro_rules! avp {
     ($code:expr, $vendor_id:expr, $flags:expr, $value:expr, $dict:expr $(,)?) => {
         Avp::new($code, $vendor_id, $flags, $value.into(), $dict)
-    }; // ($name:expr, $value:expr, $dict:expr $(,)?) => {
-       //     Avp::from_name($name, $value.into(), $dict)
-       // };
+    };
+    ($name:expr, $value:expr, $dict:expr $(,)?) => {
+        Avp::from_name($name, $value.into(), $dict)
+    };
 }
 
 #[cfg(test)]
@@ -748,7 +755,13 @@ mod tests {
         let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
         let dict = Arc::new(dict);
 
-        let avp = avp!(264, None, M, Identity::new("host.example.com"), dict);
+        let avp = avp!(
+            264,
+            None,
+            M,
+            Identity::new("host.example.com"),
+            Arc::clone(&dict)
+        );
         assert_eq!(avp.get_code(), 264);
         assert_eq!(avp.get_flags().mandatory, true);
         assert_eq!(avp.get_flags().private, false);
@@ -756,13 +769,17 @@ mod tests {
         assert_eq!(avp.get_vendor_id(), None);
         assert_eq!(avp.get_identity().unwrap().value(), "host.example.com");
 
-        // let dict = Dictionary::new(&[&dictionary::DEFAULT_DICT_XML]);
-        // let avp = avp!("Session-Id", UTF8String::new("session-id"), &dict).unwrap();
-        // assert_eq!(avp.get_code(), 263);
-        // assert_eq!(avp.get_flags().mandatory, true);
-        // assert_eq!(avp.get_flags().private, false);
-        // assert_eq!(avp.get_flags().vendor, false);
-        // assert_eq!(avp.get_vendor_id(), None);
-        // assert_eq!(avp.get_utf8string().unwrap().value(), "session-id");
+        let avp = avp!(
+            "Session-Id",
+            UTF8String::new("session-id"),
+            Arc::clone(&dict)
+        )
+        .unwrap();
+        assert_eq!(avp.get_code(), 263);
+        assert_eq!(avp.get_flags().mandatory, true);
+        assert_eq!(avp.get_flags().private, false);
+        assert_eq!(avp.get_flags().vendor, false);
+        assert_eq!(avp.get_vendor_id(), None);
+        assert_eq!(avp.get_utf8string().unwrap().value(), "session-id");
     }
 }

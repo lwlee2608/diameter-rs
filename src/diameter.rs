@@ -30,7 +30,6 @@
 //!   +-+-+-+-+-+-+-+-+
 //! ```
 
-use crate::avp;
 use crate::avp::Avp;
 use crate::avp::AvpValue;
 use crate::dictionary::Dictionary;
@@ -152,31 +151,17 @@ impl DiameterMessage {
         self.avps.push(avp);
     }
 
+    // Adds an AVP to the message with the specified parameters.
     pub fn add_avp(&mut self, code: u32, vendor_id: Option<u32>, flags: u8, value: AvpValue) {
         let avp = Avp::new(code, vendor_id, flags, value, Arc::clone(&self.dictionary));
         self.add(avp);
     }
 
-    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Option<()> {
-        let avp_definition = self.dictionary.get_avp_by_name(avp_name)?;
-
-        let avp_flags = if avp_definition.m_flag {
-            avp::flags::M
-        } else {
-            0
-        };
-
-        let avp = Avp::new(
-            avp_definition.code,
-            avp_definition.vendor_id,
-            avp_flags,
-            value,
-            self.dictionary.clone(),
-        );
-
+    /// Adds an AVP to the message by name.
+    pub fn add_avp_by_name(&mut self, avp_name: &str, value: AvpValue) -> Result<()> {
+        let avp = Avp::from_name(avp_name, value, Arc::clone(&self.dictionary))?;
         self.add(avp);
-
-        Some(())
+        Ok(())
     }
 
     /// Returns the total length of the Diameter message, including the header and AVPs.
@@ -589,35 +574,35 @@ mod tests {
         assert_eq!(
             message
                 .add_avp_by_name("Origin-Host", Identity::new("host.example.com").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Origin-Realm", Identity::new("realm.example.com").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Session-Id", UTF8String::new("ses;12345888").into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Service-Context-Id", Unsigned32::new(2001).into())
-                .is_some(),
+                .is_ok(),
             true
         );
 
         assert_eq!(
             message
                 .add_avp_by_name("Does-Not-Exist", Integer32::new(1234).into())
-                .is_none(),
+                .is_err(),
             true
         );
 
