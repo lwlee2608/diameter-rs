@@ -21,6 +21,10 @@ impl Address {
         Address(value)
     }
 
+    pub fn value(&self) -> &Value {
+        &self.0
+    }
+
     pub fn from_ipv4(ip: Ipv4Addr) -> Address {
         Address(Value::IPv4(ip))
     }
